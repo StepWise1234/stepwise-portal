@@ -7,6 +7,7 @@ import { People } from './pages/People'
 import { PersonDetail } from './pages/PersonDetail'
 import { Trainings } from './pages/Trainings'
 import { Settings } from './pages/Settings'
+import { Accommodation } from './pages/Accommodation'
 import './App.css'
 
 const queryClient = new QueryClient({
@@ -23,6 +24,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          {/* Participant-facing routes (no layout) */}
+          <Route path="portal/accommodation" element={<Accommodation />} />
+
+          {/* Admin routes (with layout) */}
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/action-center" replace />} />
             <Route path="action-center" element={<ActionCenter />} />

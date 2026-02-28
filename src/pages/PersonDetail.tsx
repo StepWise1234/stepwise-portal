@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -16,15 +16,20 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertCircle,
-  Video,
-  ExternalLink,
-  Copy,
-  Check
+  Video
 } from 'lucide-react'
 import { useApplicant, useApplication, useUpdateApplicant, useUpdateApplication, useMoveStage } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
 import { PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS, type PipelineStage } from '../lib/supabase'
-import { BOOKING_LINKS } from '../lib/calendly'
+import { getBookingLinks } from '../lib/calendly'
+
+declare global {
+  interface Window {
+    Calendly?: {
+      initPopupWidget: (options: { url: string }) => void
+    }
+  }
+}
 
 type Tab = 'overview' | 'application' | 'health' | 'pipeline' | 'engagement'
 
@@ -40,13 +45,32 @@ export function PersonDetail() {
   const updateApplicant = useUpdateApplicant()
   const updateApplication = useUpdateApplication()
   const moveStage = useMoveStage()
-  const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
-  const copyBookingLink = (type: 'chemistry_call' | 'interview') => {
-    const link = BOOKING_LINKS[type]
-    navigator.clipboard.writeText(link)
-    setCopiedLink(type)
-    setTimeout(() => setCopiedLink(null), 2000)
+  // Load Calendly widget script
+  useEffect(() => {
+    if (!document.getElementById('calendly-widget-script')) {
+      const script = document.createElement('script')
+      script.id = 'calendly-widget-script'
+      script.src = 'https://assets.calendly.com/assets/external/widget.js'
+      script.async = true
+      document.head.appendChild(script)
+
+      const link = document.createElement('link')
+      link.href = 'https://assets.calendly.com/assets/external/widget.css'
+      link.rel = 'stylesheet'
+      document.head.appendChild(link)
+    }
+  }, [])
+
+  const openCalendlyPopup = (type: 'chemistry_call' | 'interview') => {
+    const bookingLinks = getBookingLinks()
+    const baseUrl = bookingLinks[type]
+    // Pre-fill email and name if available
+    const prefill = applicant ? `?email=${encodeURIComponent(applicant.email || '')}&name=${encodeURIComponent(applicant.name || '')}` : ''
+
+    if (window.Calendly) {
+      window.Calendly.initPopupWidget({ url: baseUrl + prefill })
+    }
   }
 
   if (isLoading) {
@@ -215,40 +239,20 @@ export function PersonDetail() {
       {/* Quick Actions - Booking Links */}
       <div className="quick-actions">
         <div className="booking-buttons">
-          <a
-            href={BOOKING_LINKS.chemistry_call}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => openCalendlyPopup('chemistry_call')}
             className="btn-booking chemistry"
           >
             <Video size={16} />
             Schedule Chemistry Call
-            <ExternalLink size={14} />
-          </a>
-          <button
-            onClick={() => copyBookingLink('chemistry_call')}
-            className="btn-copy"
-            title="Copy link"
-          >
-            {copiedLink === 'chemistry_call' ? <Check size={14} /> : <Copy size={14} />}
           </button>
 
-          <a
-            href={BOOKING_LINKS.interview}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => openCalendlyPopup('interview')}
             className="btn-booking interview"
           >
             <Calendar size={16} />
             Schedule Interview
-            <ExternalLink size={14} />
-          </a>
-          <button
-            onClick={() => copyBookingLink('interview')}
-            className="btn-copy"
-            title="Copy link"
-          >
-            {copiedLink === 'interview' ? <Check size={14} /> : <Copy size={14} />}
           </button>
         </div>
       </div>
@@ -307,6 +311,19 @@ export function PersonDetail() {
                   label="Accommodation"
                   field="accommodation_choice"
                   value={applicant.accommodation_choice}
+                  type="select"
+                  options={[
+                    { value: '', label: 'Not selected' },
+                    { value: 'bedroom-1', label: 'Room 1 - Queen Suite' },
+                    { value: 'bedroom-2', label: 'Room 2 - Double Room (2 beds)' },
+                    { value: 'bedroom-3', label: 'Room 3 - Artisan Room (2 beds)' },
+                    { value: 'bedroom-4', label: 'Room 4 - Modern Double (2 beds)' },
+                    { value: 'bedroom-5', label: 'Room 5 - Work Suite' },
+                    { value: 'bedroom-6', label: 'Room 6 - Attic Retreat' },
+                    { value: 'bedroom-7', label: 'Room 7 - Skylight Suite' },
+                    { value: 'bedroom-8', label: 'Room 8 - Grand Suite (2 queens)' },
+                    { value: 'commute', label: 'Commute (not staying)' }
+                  ]}
                 />
                 <EditableField
                   label="Accommodation Confirmed"

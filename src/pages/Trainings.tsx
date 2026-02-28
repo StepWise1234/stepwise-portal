@@ -11,7 +11,9 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Bed,
+  Car
 } from 'lucide-react'
 import { useTrainings, useUpdateTraining } from '../hooks/useTrainings'
 import { useApplicants } from '../hooks/useApplicants'
@@ -19,6 +21,22 @@ import { STAGE_COLORS, STAGE_LABELS, type PipelineStage } from '../lib/supabase'
 
 // Stages that count toward enrollment (past approval)
 const ENROLLED_STAGES: PipelineStage[] = ['payment', 'onboarding', 'complete']
+
+// Room data for accommodation display
+const ROOM_NAMES: Record<string, string> = {
+  'bedroom-1': 'Room 1 - Queen Suite',
+  'bedroom-2': 'Room 2 - Double Room',
+  'bedroom-3': 'Room 3 - Artisan Room',
+  'bedroom-4': 'Room 4 - Modern Double',
+  'bedroom-5': 'Room 5 - Work Suite',
+  'bedroom-6': 'Room 6 - Attic Retreat',
+  'bedroom-7': 'Room 7 - Skylight Suite',
+  'bedroom-8': 'Room 8 - Grand Suite',
+  'commute': 'Commute'
+}
+
+// Training ID for March 13-16 (has accommodation)
+const MARCH_TRAINING_ID = 'c626109f-11a4-4549-991e-022727300feb'
 
 // Get status based on capacity
 function getComputedStatus(enrolledCount: number, maxCapacity: number, isPastTraining: boolean): string {
@@ -250,6 +268,53 @@ export function Trainings() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Room Assignments - only for March training */}
+                    {training.id === MARCH_TRAINING_ID && (
+                      <div className="detail-section room-assignments-section">
+                        <h4><Bed size={16} /> Room Assignments</h4>
+                        <div className="room-assignments-grid">
+                          {Object.entries(ROOM_NAMES).map(([roomId, roomName]) => {
+                            const occupants = trainingApplicants.filter(a => a.accommodation_choice === roomId)
+                            const isCommute = roomId === 'commute'
+
+                            return (
+                              <div key={roomId} className={`room-assignment-card ${isCommute ? 'commute' : ''} ${occupants.length > 0 ? 'occupied' : 'empty'}`}>
+                                <div className="room-assignment-header">
+                                  {isCommute ? <Car size={16} /> : <Bed size={16} />}
+                                  <span className="room-name">{roomName}</span>
+                                </div>
+                                <div className="room-occupants">
+                                  {occupants.length > 0 ? (
+                                    occupants.map(occ => (
+                                      <Link key={occ.id} to={`/people/${occ.id}`} className="occupant-name">
+                                        {occ.name?.split(' ')[0]}
+                                      </Link>
+                                    ))
+                                  ) : (
+                                    <span className="no-occupant">Available</span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="room-stats">
+                          {(() => {
+                            const withRoom = trainingApplicants.filter(a => a.accommodation_choice && a.accommodation_choice !== 'commute').length
+                            const commuting = trainingApplicants.filter(a => a.accommodation_choice === 'commute').length
+                            const noSelection = trainingApplicants.filter(a => !a.accommodation_choice).length
+                            return (
+                              <>
+                                <span className="stat"><Bed size={14} /> {withRoom} staying</span>
+                                <span className="stat"><Car size={14} /> {commuting} commuting</span>
+                                {noSelection > 0 && <span className="stat pending">{noSelection} pending</span>}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="detail-section">
                       <h4>All Applicants ({trainingApplicants.length})</h4>
