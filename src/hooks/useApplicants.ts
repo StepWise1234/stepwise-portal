@@ -133,8 +133,59 @@ export function useMoveStage() {
       if (error) throw error
       return data
     },
+    // Optimistic update - immediately move the card in the UI
+    onMutate: async ({ id, stage }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['applicants-by-stage'] })
+
+      // Snapshot the previous value
+      type ApplicantWithTraining = Applicant & { trainings?: { name: string } | null }
+      type StageData = Record<PipelineStage, ApplicantWithTraining[]>
+
+      const previousData = queryClient.getQueryData<StageData>(['applicants-by-stage'])
+      console.log('onMutate called', { id, stage, hasPreviousData: !!previousData })
+
+      if (previousData) {
+        // Deep clone via JSON to ensure completely new references
+        const newData: StageData = JSON.parse(JSON.stringify(previousData))
+
+        // Find the applicant in any stage
+        let movedApplicant: ApplicantWithTraining | undefined
+        let fromStage: PipelineStage | undefined
+
+        for (const stageKey of Object.keys(newData) as PipelineStage[]) {
+          const idx = newData[stageKey].findIndex((a: ApplicantWithTraining) => a.id === id)
+          if (idx !== -1) {
+            fromStage = stageKey
+            movedApplicant = { ...newData[stageKey][idx], pipeline_stage: stage }
+            newData[stageKey].splice(idx, 1)
+            console.log('Found applicant in stage', fromStage, 'moving to', stage)
+            break
+          }
+        }
+
+        // Add to the new stage
+        if (movedApplicant && fromStage !== stage) {
+          newData[stage].unshift(movedApplicant)
+          console.log('Setting new query data')
+          queryClient.setQueryData(['applicants-by-stage'], newData)
+        }
+      }
+
+      return { previousData }
+    },
+    // If mutation fails, roll back to the previous value
+    onError: (_err, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['applicants-by-stage'], context.previousData)
+      }
+    },
+    // Refetch after success to ensure data is in sync (with small delay to not race)
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applicants'] })
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['applicants-by-stage'] })
+        queryClient.invalidateQueries({ queryKey: ['applicants'] })
+      }, 500)
     },
   })
 }

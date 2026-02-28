@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { format, formatDistanceToNow, isPast, isToday, addDays } from 'date-fns'
+import { format, formatDistanceToNow, isPast, isToday, addDays, isTomorrow } from 'date-fns'
 import {
   AlertCircle,
   Clock,
@@ -9,17 +9,20 @@ import {
   User,
   Mail,
   Phone,
-  Timer
+  Timer,
+  Video
 } from 'lucide-react'
 import { useActiveReminders, useCompleteReminder, useSnoozeReminder } from '../hooks/useReminders'
 import { useApplicants } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
+import { useUpcomingCalls } from '../hooks/useCalendly'
 import { STAGE_COLORS, STAGE_LABELS, type PipelineStage } from '../lib/supabase'
 
 export function ActionCenter() {
   const { data: reminders } = useActiveReminders()
   const { data: applicants } = useApplicants()
   const { data: trainings } = useTrainings()
+  const { data: upcomingCalls } = useUpcomingCalls()
   const completeReminder = useCompleteReminder()
   const snoozeReminder = useSnoozeReminder()
 
@@ -41,7 +44,6 @@ export function ActionCenter() {
     a.pipeline_stage === 'payment' && a.payment_status === 'Unpaid'
   ) || []
 
-  // Find unsigned waivers
   // Upcoming trainings (next 30 days)
   const upcomingTrainings = trainings?.filter(t => {
     if (!t.start_date) return false
@@ -49,6 +51,19 @@ export function ActionCenter() {
     const daysUntil = (start.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     return daysUntil > 0 && daysUntil <= 30
   }) || []
+
+  // Split calls into today/tomorrow and upcoming
+  const todayCalls = upcomingCalls?.filter(c => isToday(new Date(c.start_time))) || []
+  const tomorrowCalls = upcomingCalls?.filter(c => isTomorrow(new Date(c.start_time))) || []
+  const laterCalls = upcomingCalls?.filter(c =>
+    !isToday(new Date(c.start_time)) && !isTomorrow(new Date(c.start_time))
+  ) || []
+
+  // Match call invitees to applicants
+  const findApplicantByEmail = (email?: string) => {
+    if (!email || !applicants) return null
+    return applicants.find(a => a.email?.toLowerCase() === email.toLowerCase())
+  }
 
   const handleComplete = (id: string) => {
     completeReminder.mutate(id)
@@ -64,6 +79,82 @@ export function ActionCenter() {
         <h1>Action Center</h1>
         <p className="subtitle">Items requiring your attention</p>
       </header>
+
+      {/* Today's Calls */}
+      {todayCalls.length > 0 && (
+        <section className="calls-section today">
+          <h2 className="section-title">
+            <Video className="icon today" />
+            Today's Calls
+          </h2>
+          <div className="calls-list">
+            {todayCalls.map(call => {
+              const matchedApplicant = findApplicantByEmail(call.invitee?.email)
+              return (
+                <div key={call.uri} className="call-card today">
+                  <div className="call-time">
+                    <span className="time-display">{format(new Date(call.start_time), 'h:mm a')}</span>
+                    <span className="call-type">{call.name}</span>
+                  </div>
+                  <div className="call-info">
+                    <h3>{call.invitee?.name || 'Unknown'}</h3>
+                    {call.invitee?.email && (
+                      <span className="email"><Mail size={12} /> {call.invitee.email}</span>
+                    )}
+                  </div>
+                  <div className="call-actions">
+                    {matchedApplicant ? (
+                      <Link to={`/people/${matchedApplicant.id}`} className="btn-link">
+                        View profile <ChevronRight size={14} />
+                      </Link>
+                    ) : (
+                      <span className="no-match">Not in system</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Tomorrow's Calls */}
+      {tomorrowCalls.length > 0 && (
+        <section className="calls-section tomorrow">
+          <h2 className="section-title">
+            <Calendar className="icon" />
+            Tomorrow's Calls
+          </h2>
+          <div className="calls-list">
+            {tomorrowCalls.map(call => {
+              const matchedApplicant = findApplicantByEmail(call.invitee?.email)
+              return (
+                <div key={call.uri} className="call-card">
+                  <div className="call-time">
+                    <span className="time-display">{format(new Date(call.start_time), 'h:mm a')}</span>
+                    <span className="call-type">{call.name}</span>
+                  </div>
+                  <div className="call-info">
+                    <h3>{call.invitee?.name || 'Unknown'}</h3>
+                    {call.invitee?.email && (
+                      <span className="email"><Mail size={12} /> {call.invitee.email}</span>
+                    )}
+                  </div>
+                  <div className="call-actions">
+                    {matchedApplicant ? (
+                      <Link to={`/people/${matchedApplicant.id}`} className="btn-link">
+                        View profile <ChevronRight size={14} />
+                      </Link>
+                    ) : (
+                      <span className="no-match">Not in system</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Urgent Section */}
       {(overdueReminders.length > 0 || staleLeads.length > 0 || unpaidAccepted.length > 0) && (
@@ -160,6 +251,40 @@ export function ActionCenter() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Upcoming Calls */}
+      {laterCalls.length > 0 && (
+        <section className="calls-section upcoming">
+          <h2 className="section-title">
+            <Video className="icon" />
+            Upcoming Calls
+          </h2>
+          <div className="calls-list compact">
+            {laterCalls.slice(0, 8).map(call => {
+              const matchedApplicant = findApplicantByEmail(call.invitee?.email)
+              return (
+                <div key={call.uri} className="call-card compact">
+                  <div className="call-date">
+                    {format(new Date(call.start_time), 'MMM d')}
+                  </div>
+                  <div className="call-time-compact">
+                    {format(new Date(call.start_time), 'h:mm a')}
+                  </div>
+                  <div className="call-info">
+                    <span className="name">{call.invitee?.name || 'Unknown'}</span>
+                    <span className="type">{call.name}</span>
+                  </div>
+                  {matchedApplicant && (
+                    <Link to={`/people/${matchedApplicant.id}`} className="profile-link">
+                      <User size={14} />
+                    </Link>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </section>
       )}

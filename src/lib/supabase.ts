@@ -183,13 +183,31 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   complete: 'Complete'
 }
 
+// Warm to cool gradient across pipeline stages
 export const STAGE_COLORS: Record<PipelineStage, string> = {
-  lead: '#94a3b8',
-  chemistry_call: '#f59e0b',
-  application: '#3b82f6',
-  interview: '#8b5cf6',
-  approval: '#ec4899',
-  payment: '#10b981',
-  onboarding: '#06b6d4',
-  complete: '#22c55e'
+  lead: '#EF4444',        // Red (warmest)
+  chemistry_call: '#F97316', // Orange
+  application: '#F59E0B',    // Amber
+  interview: '#84CC16',      // Lime
+  approval: '#22C55E',       // Green
+  payment: '#14B8A6',        // Teal
+  onboarding: '#0EA5E9',     // Sky blue
+  complete: '#6366F1'        // Indigo (coolest)
+}
+
+// Training colors - distinct colors for each training cohort
+export const TRAINING_COLORS: Record<string, string> = {
+  '1952aca4-ef44-4294-bd63-a467cd800497': '#8B5CF6', // March 30 - April 2, 2026 - Purple
+  'c626109f-11a4-4549-991e-022727300feb': '#F59E0B', // March 13 - 16, 2026 - Amber
+  '9175fc79-e6ae-43b3-9b69-31b863133ebd': '#10B981', // February 17 - 20, 2026 - Green
+  '8b277bc1-b8ca-43e7-a924-6f64c073016c': '#3B82F6', // January 20 - 23, 2026 - Blue
+  '9d937387-e9e1-4720-9149-aaedaec3fcc8': '#EC4899', // October 27 - 30, 2025 - Pink
+}
+
+// Fallback color for trainings not in the map
+export const DEFAULT_TRAINING_COLOR = '#94A3B8'
+
+export function getTrainingColor(trainingId: string | null): string {
+  if (!trainingId) return DEFAULT_TRAINING_COLOR
+  return TRAINING_COLORS[trainingId] || DEFAULT_TRAINING_COLOR
 }

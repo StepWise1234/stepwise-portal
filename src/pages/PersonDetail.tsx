@@ -15,11 +15,16 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
-  AlertCircle
+  AlertCircle,
+  Video,
+  ExternalLink,
+  Copy,
+  Check
 } from 'lucide-react'
 import { useApplicant, useApplication, useUpdateApplicant, useUpdateApplication, useMoveStage } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
 import { PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS, type PipelineStage } from '../lib/supabase'
+import { BOOKING_LINKS } from '../lib/calendly'
 
 type Tab = 'overview' | 'application' | 'health' | 'pipeline' | 'engagement'
 
@@ -35,6 +40,14 @@ export function PersonDetail() {
   const updateApplicant = useUpdateApplicant()
   const updateApplication = useUpdateApplication()
   const moveStage = useMoveStage()
+  const [copiedLink, setCopiedLink] = useState<string | null>(null)
+
+  const copyBookingLink = (type: 'chemistry_call' | 'interview') => {
+    const link = BOOKING_LINKS[type]
+    navigator.clipboard.writeText(link)
+    setCopiedLink(type)
+    setTimeout(() => setCopiedLink(null), 2000)
+  }
 
   if (isLoading) {
     return <div className="page loading">Loading...</div>
@@ -196,6 +209,47 @@ export function PersonDetail() {
               <ChevronRight size={20} />
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Quick Actions - Booking Links */}
+      <div className="quick-actions">
+        <div className="booking-buttons">
+          <a
+            href={BOOKING_LINKS.chemistry_call}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-booking chemistry"
+          >
+            <Video size={16} />
+            Schedule Chemistry Call
+            <ExternalLink size={14} />
+          </a>
+          <button
+            onClick={() => copyBookingLink('chemistry_call')}
+            className="btn-copy"
+            title="Copy link"
+          >
+            {copiedLink === 'chemistry_call' ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+
+          <a
+            href={BOOKING_LINKS.interview}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-booking interview"
+          >
+            <Calendar size={16} />
+            Schedule Interview
+            <ExternalLink size={14} />
+          </a>
+          <button
+            onClick={() => copyBookingLink('interview')}
+            className="btn-copy"
+            title="Copy link"
+          >
+            {copiedLink === 'interview' ? <Check size={14} /> : <Copy size={14} />}
+          </button>
         </div>
       </div>
 

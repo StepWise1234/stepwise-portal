@@ -7,7 +7,7 @@ import {
   GripVertical
 } from 'lucide-react'
 import { useApplicantsByStage, useMoveStage } from '../hooks/useApplicants'
-import { PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS, type PipelineStage, type Applicant } from '../lib/supabase'
+import { PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS, getTrainingColor, type PipelineStage, type Applicant } from '../lib/supabase'
 
 export function Pipeline() {
   const { data: applicantsByStage, isLoading } = useApplicantsByStage()
@@ -28,20 +28,30 @@ export function Pipeline() {
     }
   }
 
-  const handleDragStart = (e: React.DragEvent, applicantId: string) => {
+  const handleDragStart = (e: React.DragEvent, applicantId: string, currentStage: PipelineStage) => {
     setDragging(applicantId)
     e.dataTransfer.setData('applicantId', applicantId)
+    e.dataTransfer.setData('currentStage', currentStage)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragEnd = () => {
+    setDragging(null)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
   }
 
-  const handleDrop = (e: React.DragEvent, stage: PipelineStage) => {
+  const handleDrop = (e: React.DragEvent, targetStage: PipelineStage) => {
     e.preventDefault()
     const applicantId = e.dataTransfer.getData('applicantId')
-    if (applicantId) {
-      moveStage.mutate({ id: applicantId, stage })
+    const currentStage = e.dataTransfer.getData('currentStage')
+
+    // Only move if dropping into a different stage
+    if (applicantId && currentStage !== targetStage) {
+      moveStage.mutate({ id: applicantId, stage: targetStage })
     }
     setDragging(null)
   }
@@ -77,8 +87,10 @@ export function Pipeline() {
                 <div
                   key={applicant.id}
                   className={`pipeline-card ${dragging === applicant.id ? 'dragging' : ''}`}
+                  style={{ borderLeftColor: getTrainingColor(applicant.training_id) }}
                   draggable
-                  onDragStart={(e) => handleDragStart(e, applicant.id)}
+                  onDragStart={(e) => handleDragStart(e, applicant.id, stage)}
+                  onDragEnd={handleDragEnd}
                 >
                   <div className="card-drag-handle">
                     <GripVertical size={14} />
@@ -87,7 +99,16 @@ export function Pipeline() {
                   <Link to={`/people/${applicant.id}`} className="card-content">
                     <h4>{applicant.name}</h4>
                     {applicant.trainings?.name && (
-                      <span className="training-badge">{applicant.trainings.name}</span>
+                      <span
+                        className="training-badge"
+                        style={{
+                          backgroundColor: getTrainingColor(applicant.training_id) + '20',
+                          color: getTrainingColor(applicant.training_id),
+                          borderLeft: `3px solid ${getTrainingColor(applicant.training_id)}`
+                        }}
+                      >
+                        {applicant.trainings.name}
+                      </span>
                     )}
                     {applicant.email && (
                       <span className="email"><Mail size={12} /> {applicant.email}</span>
