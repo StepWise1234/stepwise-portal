@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://ybludwecmqghoheotzzz.supabase.co'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 // Using service role key for admin app to bypass RLS
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibHVkd2VjbXFnaG9oZW90enp6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDQzMjgzMywiZXhwIjoyMDg2MDA4ODMzfQ.1356D5Jb1NDT62Jj5liz7i1iPOYTILF90_7tht0inC8'
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || ''
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey)
 

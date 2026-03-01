@@ -26,6 +26,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
+          VITE_ALLOWED_ADMINS: ${{ secrets.VITE_ALLOWED_ADMINS }}
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4

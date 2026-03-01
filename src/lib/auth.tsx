@@ -1,17 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { createClient, type User, type Session } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://ybludwecmqghoheotzzz.supabase.co'
-// Use anon key for auth (not service role)
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibHVkd2VjbXFnaG9oZW90enp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MzI4MzMsImV4cCI6MjA4NjAwODgzM30.kIy0DdvPbmBAXCLVVqVxlZLQKXnvPBZQwkVZkJk78pM'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ybludwecmqghoheotzzz.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
 export const authClient = createClient(supabaseUrl, supabaseAnonKey)
 
-// Whitelist of allowed admin emails
-const ALLOWED_ADMINS = [
-  'laelaml@gmail.com',
-  // Add more admin emails here
-]
+// Whitelist of allowed admin emails (comma-separated in env var)
+const ALLOWED_ADMINS = (import.meta.env.VITE_ALLOWED_ADMINS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
 
 interface AuthContextType {
   user: User | null

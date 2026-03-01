@@ -1,9 +1,10 @@
 // Calendly API integration
 
 // Default booking links (fallback if OAuth not connected)
+// Configure these via Settings > Calendly Integration
 const DEFAULT_BOOKING_LINKS = {
-  chemistry_call: 'https://calendly.com/laela-coaching/chemistry-call',
-  interview: 'https://calendly.com/laela-coaching/stepwise-training-interview',
+  chemistry_call: '',
+  interview: '',
 }
 
 // Get OAuth connection from localStorage
