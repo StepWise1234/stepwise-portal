@@ -9,8 +9,7 @@ export const authClient = createClient(supabaseUrl, supabaseAnonKey)
 
 // Whitelist of allowed admin emails
 const ALLOWED_ADMINS = [
-  'laela@stepwise.education',
-  'laela.leonard@gmail.com',
+  'laelaml@gmail.com',
   // Add more admin emails here
 ]
 
