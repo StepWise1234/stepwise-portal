@@ -2154,42 +2154,54 @@ html, body, #root {
 .stage-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 2px solid transparent;
-  border-radius: 20px;
-  background: var(--cream);
+  gap: 8px;
+  padding: 8px 14px;
+  border: 2px solid var(--border);
+  border-radius: 24px;
+  background: var(--white);
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .stage-pill:hover {
-  background: var(--cream-dark);
+  background: var(--cream);
+  border-color: var(--text-muted);
 }
 
 .stage-pill.active {
   border-width: 2px;
+  background: var(--white);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.stage-dot {
-  width: 8px;
-  height: 8px;
+.stage-pill .stage-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
-.stage-name {
+.stage-pill .stage-name {
   font-weight: 500;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
-.stage-count {
-  background: rgba(0,0,0,0.08);
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 11px;
+.stage-pill .stage-count {
+  background: var(--cream-dark);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  min-width: 24px;
+  text-align: center;
+}
+
+.stage-pill.active .stage-count {
+  background: var(--text-primary);
+  color: var(--white);
 }
 
 /* Filter Dropdown */
