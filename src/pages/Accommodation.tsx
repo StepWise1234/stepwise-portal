@@ -3,94 +3,94 @@ import { useSearchParams } from 'react-router-dom'
 import { Check, Home, Car, Users, Bed, Bath, Wifi, Wind, Tv, Utensils, ParkingCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-// Room data from the Airbnb listing
+// Room data from Airbnb listing: https://www.airbnb.com/rooms/1468171904038651220
 const ROOMS = [
   {
     id: 'bedroom-1',
-    name: 'Room 1',
-    subtitle: 'Queen Suite',
+    name: 'Bedroom 1',
+    subtitle: 'Main Floor',
     beds: '1 Queen Bed',
-    description: 'Private room with queen bed, perfect for solo occupancy.',
+    description: 'Cozy ground floor room with queen bed and natural light.',
     capacity: 1,
     floor: 'Main Floor',
-    amenities: ['Private closet', 'Desk area', 'Natural light'],
-    image: '/rooms/room1.jpg'
+    amenities: ['Ground floor', 'Easy access', 'Quiet'],
+    image: '/rooms/room1.png'
   },
   {
     id: 'bedroom-2',
-    name: 'Room 2',
-    subtitle: 'Double Room',
+    name: 'Bedroom 2',
+    subtitle: 'Main Floor',
     beds: '2 Double Beds',
-    description: 'Spacious room with two double beds. Ideal for sharing.',
+    description: 'Spacious room with two double beds, great for sharing.',
     capacity: 2,
     floor: 'Main Floor',
-    amenities: ['Extra space', 'Two nightstands', 'Large closet'],
+    amenities: ['Two beds', 'Shared option', 'Near kitchen'],
     image: '/rooms/room2.jpg'
   },
   {
     id: 'bedroom-3',
-    name: 'Room 3',
-    subtitle: 'Artisan Room',
+    name: 'Bedroom 3',
+    subtitle: 'Second Floor',
     beds: '2 Double Beds',
-    description: 'Bright room featuring colorful wall art and large windows.',
+    description: 'Bright second floor room with colorful decor and two beds.',
     capacity: 2,
     floor: 'Second Floor',
-    amenities: ['Artistic decor', 'Abundant light', 'Modern style'],
+    amenities: ['Colorful decor', 'Large windows', 'Airy'],
     image: '/rooms/room3.jpg'
   },
   {
     id: 'bedroom-4',
-    name: 'Room 4',
-    subtitle: 'Modern Double',
+    name: 'Bedroom 4',
+    subtitle: 'Second Floor',
     beds: '2 Double Beds',
-    description: 'Clean, modern room with neutral tones and two comfortable beds.',
+    description: 'Modern room with neutral tones and two comfortable double beds.',
     capacity: 2,
     floor: 'Second Floor',
-    amenities: ['Contemporary design', 'Cozy atmosphere', 'Great views'],
-    image: '/rooms/room4.jpg'
+    amenities: ['Modern style', 'Two beds', 'Clean lines'],
+    image: '/rooms/room4.png'
   },
   {
     id: 'bedroom-5',
-    name: 'Room 5',
-    subtitle: 'Work Suite',
+    name: 'Bedroom 5',
+    subtitle: 'Second Floor',
     beds: '1 Queen Bed',
-    description: 'Queen room with dedicated desk area for those who need workspace.',
+    description: 'Queen room with desk area, perfect for those who need workspace.',
     capacity: 1,
     floor: 'Second Floor',
-    amenities: ['Work desk', 'Task lighting', 'Quiet location'],
+    amenities: ['Work desk', 'Queen bed', 'Private'],
     image: '/rooms/room5.jpg'
   },
   {
     id: 'bedroom-6',
-    name: 'Room 6',
-    subtitle: 'Attic Retreat',
+    name: 'Bedroom 6',
+    subtitle: 'Top Floor',
     beds: '1 Double Bed + Couch',
-    description: 'Unique attic room with slanted ceilings and abundant natural light.',
+    description: 'Charming attic room with slanted ceilings and cozy atmosphere.',
     capacity: 1,
     floor: 'Top Floor',
-    amenities: ['Character ceiling', 'Cozy nook', 'Window views'],
+    amenities: ['Attic charm', 'Couch', 'Unique'],
     image: '/rooms/room6.jpg'
   },
   {
     id: 'bedroom-7',
-    name: 'Room 7',
-    subtitle: 'Skylight Suite',
+    name: 'Bedroom 7',
+    subtitle: 'Top Floor',
     beds: '1 Queen Bed + Couch',
     description: 'Top floor suite with angled ceiling and warm, inviting decor.',
     capacity: 1,
     floor: 'Top Floor',
-    amenities: ['Unique architecture', 'Premium bedding', 'Private feel'],
-    image: '/rooms/room7.jpg'
+    amenities: ['Suite feel', 'Queen bed', 'Couch'],
+    image: '/rooms/room7.png'
   },
   {
     id: 'bedroom-8',
-    name: 'Room 8',
-    subtitle: 'Grand Suite',
+    name: 'Bedroom 8',
+    subtitle: 'Top Floor',
     beds: '2 Queen Beds',
-    description: 'Largest bedroom with two queen beds. Perfect for sharing or extra space.',
+    description: 'Largest bedroom with two queen beds. Perfect for sharing.',
     capacity: 2,
     floor: 'Top Floor',
-    amenities: ['Most spacious', 'Two queens', 'Premium location'],
+    amenities: ['Most spacious', 'Two queens', 'Top floor'],
     image: '/rooms/room8.jpg'
   }
 ]
@@ -115,10 +115,10 @@ export function Accommodation() {
 
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
   const [roomSelections, setRoomSelections] = useState<RoomSelection[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [_applicantName, setApplicantName] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
   // Fetch current room selections and applicant info
   useEffect(() => {
@@ -136,7 +136,6 @@ export function Accommodation() {
         setApplicantName(applicant.name || '')
         if (applicant.accommodation_choice) {
           setSelectedRoom(applicant.accommodation_choice)
-          setIsSubmitted(true)
         }
       }
 
@@ -174,17 +173,22 @@ export function Accommodation() {
     return { available: spotsLeft > 0, spotsLeft }
   }
 
-  const handleSubmit = async () => {
-    if (!selectedRoom || !odpmId) return
+  const handleRoomSelect = async (roomId: string) => {
+    if (!odpmId || isSaving) return
 
-    setIsSubmitting(true)
+    // Check availability
+    const { available } = getRoomAvailability(roomId)
+    if (!available && selectedRoom !== roomId) return
+
+    setIsSaving(true)
     setError(null)
+    setSaveMessage(null)
 
     try {
       const { error: updateError } = await supabase
         .from('applicants')
         .update({
-          accommodation_choice: selectedRoom,
+          accommodation_choice: roomId,
           accommodation_confirmed: true,
           updated_at: new Date().toISOString()
         })
@@ -192,12 +196,22 @@ export function Accommodation() {
 
       if (updateError) throw updateError
 
-      setIsSubmitted(true)
+      setSelectedRoom(roomId)
+
+      // Update local state to reflect the change immediately
+      setRoomSelections(prev => {
+        const filtered = prev.filter(s => s.odpm_id !== odpmId)
+        return [...filtered, { odpm_id: odpmId, name: _applicantName, room_id: roomId }]
+      })
+
+      const roomName = roomId === 'commute' ? 'Commute' : ROOMS.find(r => r.id === roomId)?.name
+      setSaveMessage(`Reserved: ${roomName}`)
+      setTimeout(() => setSaveMessage(null), 3000)
     } catch (err) {
-      setError('Failed to save your selection. Please try again.')
+      setError('Failed to save. Tap again to retry.')
       console.error(err)
     } finally {
-      setIsSubmitting(false)
+      setIsSaving(false)
     }
   }
 
@@ -257,14 +271,19 @@ export function Accommodation() {
         </div>
       </section>
 
-      {/* Success Message */}
-      {isSubmitted && (
+      {/* Save Feedback */}
+      {saveMessage && (
         <div className="submission-success">
           <Check size={24} />
           <div>
-            <strong>Your selection has been saved!</strong>
-            <p>You've selected: {selectedRoom === 'commute' ? 'Commute' : ROOMS.find(r => r.id === selectedRoom)?.name}</p>
+            <strong>{saveMessage}</strong>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="submission-error">
+          <span>{error}</span>
         </div>
       )}
 
@@ -285,11 +304,10 @@ export function Accommodation() {
             return (
               <div
                 key={room.id}
-                className={`room-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'unavailable' : ''}`}
-                onClick={() => !isDisabled && !isSubmitted && setSelectedRoom(room.id)}
+                className={`room-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'unavailable' : ''} ${isSaving ? 'saving' : ''}`}
+                onClick={() => handleRoomSelect(room.id)}
               >
-                <div className="room-image">
-                  <Bed size={48} />
+                <div className="room-image" style={{ backgroundImage: `url(${room.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
                   <span className="room-floor">{room.floor}</span>
                 </div>
 
@@ -347,8 +365,8 @@ export function Accommodation() {
 
           {/* Commute Option */}
           <div
-            className={`room-card commute-card ${selectedRoom === 'commute' ? 'selected' : ''}`}
-            onClick={() => !isSubmitted && setSelectedRoom('commute')}
+            className={`room-card commute-card ${selectedRoom === 'commute' ? 'selected' : ''} ${isSaving ? 'saving' : ''}`}
+            onClick={() => handleRoomSelect('commute')}
           >
             <div className="room-image commute">
               <Car size={48} />
@@ -378,24 +396,12 @@ export function Accommodation() {
         </div>
       </section>
 
-      {/* Submit Section */}
-      {!isSubmitted && (
-        <section className="submit-section">
-          {error && <div className="error-message">{error}</div>}
-
-          <button
-            className="btn-submit"
-            onClick={handleSubmit}
-            disabled={!selectedRoom || isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : 'Confirm Selection'}
-          </button>
-
-          <p className="submit-note">
-            You can change your selection until March 1st by revisiting this page.
-          </p>
-        </section>
-      )}
+      {/* Info Section */}
+      <section className="submit-section">
+        <p className="submit-note">
+          Tap a room to reserve it. You can change your selection until March 1st.
+        </p>
+      </section>
 
       {/* Footer */}
       <footer className="accommodation-footer">

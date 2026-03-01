@@ -2051,6 +2051,19 @@ html, body, #root {
   color: #047857;
 }
 
+.submission-error {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 600px;
+  margin: 24px auto;
+  padding: 16px 24px;
+  background: #FEE2E2;
+  border-radius: 12px;
+  color: #991B1B;
+  font-weight: 500;
+}
+
 /* Room Selection Section */
 .room-selection {
   max-width: 1200px;
@@ -2114,13 +2127,20 @@ html, body, #root {
 
 /* Room Image */
 .room-image {
-  height: 160px;
+  height: 180px;
   background: linear-gradient(135deg, #E8E4E0 0%, #D4CFC8 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   color: #9CA3AF;
+  background-size: cover;
+  background-position: center;
+}
+
+.room-card.saving {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .room-image.commute {

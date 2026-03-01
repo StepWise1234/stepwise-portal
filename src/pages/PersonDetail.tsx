@@ -21,7 +21,7 @@ import {
 import { useApplicant, useApplication, useUpdateApplicant, useUpdateApplication, useMoveStage } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
 import { PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS, type PipelineStage } from '../lib/supabase'
-import { getBookingLinks } from '../lib/calendly'
+import { BOOKING_LINKS } from '../lib/calendly'
 
 declare global {
   interface Window {
@@ -63,8 +63,7 @@ export function PersonDetail() {
   }, [])
 
   const openCalendlyPopup = (type: 'chemistry_call' | 'interview') => {
-    const bookingLinks = getBookingLinks()
-    const baseUrl = bookingLinks[type]
+    const baseUrl = BOOKING_LINKS[type]
     // Pre-fill email and name if available
     const prefill = applicant ? `?email=${encodeURIComponent(applicant.email || '')}&name=${encodeURIComponent(applicant.name || '')}` : ''
 
