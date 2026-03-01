@@ -53,3 +53,41 @@ export function useUpdateTraining() {
     },
   })
 }
+
+export function useCreateTraining() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (training: Omit<Training, 'id' | 'created_at'>) => {
+      const { data, error } = await supabase
+        .from('trainings')
+        .insert(training)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] })
+    },
+  })
+}
+
+export function useDeleteTraining() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('trainings')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] })
+    },
+  })
+}

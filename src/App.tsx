@@ -6,6 +6,8 @@ import { Pipeline } from './pages/Pipeline'
 import { People } from './pages/People'
 import { PersonDetail } from './pages/PersonDetail'
 import { Trainings } from './pages/Trainings'
+import { Courses } from './pages/Courses'
+import { CourseDetail } from './pages/CourseDetail'
 import { Settings } from './pages/Settings'
 import { Accommodation } from './pages/Accommodation'
 import './App.css'
@@ -35,6 +37,8 @@ function App() {
             <Route path="people" element={<People />} />
             <Route path="people/:id" element={<PersonDetail />} />
             <Route path="trainings" element={<Trainings />} />
+            <Route path="courses" element={<Courses />} />
+            <Route path="courses/:id" element={<CourseDetail />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

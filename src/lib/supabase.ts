@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://ybludwecmqghoheotzzz.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibHVkd2VjbXFnaG9oZW90enp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MzI4MzMsImV4cCI6MjA4NjAwODgzM30._wND5hmDkd4sh7clXaBPZP0lU-c6Traz0KzlYyPxKWk'
+// Using service role key for admin app to bypass RLS
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibHVkd2VjbXFnaG9oZW90enp6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDQzMjgzMywiZXhwIjoyMDg2MDA4ODMzfQ.1356D5Jb1NDT62Jj5liz7i1iPOYTILF90_7tht0inC8'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 // Types based on your Supabase schema
 export interface Training {
@@ -19,6 +20,7 @@ export interface Training {
   cohort_name: string | null
   price_cents: number | null
   spots_filled: number | null
+  show_on_apply: boolean | null
   created_at: string | null
 }
 
@@ -48,6 +50,30 @@ export interface Applicant {
   mental_health_dx: string | null
   current_mental_health: string | null
   psych_medications: string | null
+  // Health screening fields
+  stress_level: number | null
+  suicide_consideration: string | null
+  life_experiences: string[] | null
+  cognitive_symptoms: string[] | null
+  coping_mechanisms: string[] | null
+  support_network: string[] | null
+  self_care: string | null
+  stress_sources: string | null
+  trauma_details: string | null
+  journey_work_experience: string | null
+  medicine_experience: string | null
+  serving_experience: string | null
+  training_goals: string | null
+  mental_health_support: string[] | null
+  psychedelic_medicine_use: string[] | null
+  // Additional application fields
+  physical_symptoms: string[] | null
+  life_circumstances: string | null
+  integration_support: string | null
+  supplements: string | null
+  recreational_drug_use: string | null
+  strengths_hobbies: string | null
+  anything_else: string | null
   notes: string | null
   pipeline_stage: string | null
   chemistry_call_date: string | null
@@ -210,4 +236,72 @@ export const DEFAULT_TRAINING_COLOR = '#94A3B8'
 export function getTrainingColor(trainingId: string | null): string {
   if (!trainingId) return DEFAULT_TRAINING_COLOR
   return TRAINING_COLORS[trainingId] || DEFAULT_TRAINING_COLOR
+}
+
+// Course Management Types
+export interface Course {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  color: string | null
+  sort_order: number
+  is_default: boolean
+  is_published: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseModule {
+  id: string
+  course_id: string
+  title: string
+  description: string | null
+  sort_order: number
+  is_published: boolean
+  created_at: string
+  updated_at: string
+  lessons?: CourseLesson[]
+  resources?: CourseResource[]
+}
+
+export interface CourseLesson {
+  id: string
+  module_id: string
+  title: string
+  description: string | null
+  vimeo_id: string | null
+  duration_minutes: number | null
+  sort_order: number
+  is_published: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseResource {
+  id: string
+  module_id: string
+  title: string
+  file_path: string
+  resource_type: string
+  sort_order: number
+  created_at: string
+}
+
+export interface UserCourseAccess {
+  id: string
+  user_id: string
+  course_id: string
+  granted_at: string
+  granted_by: string | null
+}
+
+export interface CourseDiscussion {
+  id: string
+  lesson_id: string
+  user_id: string
+  content: string
+  parent_id: string | null
+  created_at: string
+  updated_at: string
 }

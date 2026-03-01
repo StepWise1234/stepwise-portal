@@ -10,21 +10,60 @@ import {
   Mail,
   Phone,
   Timer,
-  Video
+  Video,
+  ExternalLink
 } from 'lucide-react'
 import { useActiveReminders, useCompleteReminder, useSnoozeReminder } from '../hooks/useReminders'
 import { useApplicants } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
 import { useUpcomingCalls } from '../hooks/useCalendly'
+import { useGoogleCalendarEvents } from '../hooks/useGoogleCalendar'
 import { STAGE_COLORS, STAGE_LABELS, type PipelineStage } from '../lib/supabase'
+
+interface UnifiedEvent {
+  id: string
+  title: string
+  startTime: Date
+  endTime?: Date
+  type: 'calendly' | 'google'
+  attendeeEmail?: string
+  attendeeName?: string
+  meetingLink?: string
+}
 
 export function ActionCenter() {
   const { data: reminders } = useActiveReminders()
   const { data: applicants } = useApplicants()
   const { data: trainings } = useTrainings()
-  const { data: upcomingCalls } = useUpcomingCalls()
+  const { data: calendlyCalls } = useUpcomingCalls()
+  const { data: googleEvents } = useGoogleCalendarEvents()
   const completeReminder = useCompleteReminder()
   const snoozeReminder = useSnoozeReminder()
+
+  // Merge Calendly and Google Calendar events
+  const allEvents: UnifiedEvent[] = [
+    // Calendly events
+    ...(calendlyCalls?.map(call => ({
+      id: call.uri,
+      title: call.name,
+      startTime: new Date(call.start_time),
+      endTime: new Date(call.end_time),
+      type: 'calendly' as const,
+      attendeeEmail: call.invitee?.email,
+      attendeeName: call.invitee?.name,
+    })) || []),
+    // Google Calendar events
+    ...(googleEvents?.map(event => ({
+      id: event.id,
+      title: event.summary || 'Untitled',
+      startTime: new Date(event.start.dateTime || event.start.date || ''),
+      endTime: event.end.dateTime ? new Date(event.end.dateTime) : undefined,
+      type: 'google' as const,
+      attendeeEmail: event.attendees?.[0]?.email,
+      attendeeName: event.attendees?.[0]?.displayName,
+      meetingLink: event.hangoutLink || event.conferenceData?.entryPoints?.[0]?.uri,
+    })) || []),
+  ].sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
 
   // Calculate urgent items
   const overdueReminders = reminders?.filter(r => isPast(new Date(r.due_date))) || []
@@ -52,14 +91,12 @@ export function ActionCenter() {
     return daysUntil > 0 && daysUntil <= 30
   }) || []
 
-  // Split calls into today/tomorrow and upcoming
-  const todayCalls = upcomingCalls?.filter(c => isToday(new Date(c.start_time))) || []
-  const tomorrowCalls = upcomingCalls?.filter(c => isTomorrow(new Date(c.start_time))) || []
-  const laterCalls = upcomingCalls?.filter(c =>
-    !isToday(new Date(c.start_time)) && !isTomorrow(new Date(c.start_time))
-  ) || []
+  // Split events into today/tomorrow and upcoming
+  const todayEvents = allEvents.filter(e => isToday(e.startTime))
+  const tomorrowEvents = allEvents.filter(e => isTomorrow(e.startTime))
+  const laterEvents = allEvents.filter(e => !isToday(e.startTime) && !isTomorrow(e.startTime))
 
-  // Match call invitees to applicants
+  // Match attendees to applicants
   const findApplicantByEmail = (email?: string) => {
     if (!email || !applicants) return null
     return applicants.find(a => a.email?.toLowerCase() === email.toLowerCase())
@@ -80,36 +117,41 @@ export function ActionCenter() {
         <p className="subtitle">Items requiring your attention</p>
       </header>
 
-      {/* Today's Calls */}
-      {todayCalls.length > 0 && (
+      {/* Today's Events */}
+      {todayEvents.length > 0 && (
         <section className="calls-section today">
           <h2 className="section-title">
             <Video className="icon today" />
-            Today's Calls
+            Today's Meetings
           </h2>
           <div className="calls-list">
-            {todayCalls.map(call => {
-              const matchedApplicant = findApplicantByEmail(call.invitee?.email)
+            {todayEvents.map(event => {
+              const matchedApplicant = findApplicantByEmail(event.attendeeEmail)
               return (
-                <div key={call.uri} className="call-card today">
+                <div key={event.id} className="call-card today">
                   <div className="call-time">
-                    <span className="time-display">{format(new Date(call.start_time), 'h:mm a')}</span>
-                    <span className="call-type">{call.name}</span>
+                    <span className="time-display">{format(event.startTime, 'h:mm a')}</span>
+                    <span className={`call-type ${event.type}`}>
+                      {event.type === 'calendly' ? '📅' : '🗓️'} {event.title}
+                    </span>
                   </div>
                   <div className="call-info">
-                    <h3>{call.invitee?.name || 'Unknown'}</h3>
-                    {call.invitee?.email && (
-                      <span className="email"><Mail size={12} /> {call.invitee.email}</span>
+                    <h3>{event.attendeeName || event.title}</h3>
+                    {event.attendeeEmail && (
+                      <span className="email"><Mail size={12} /> {event.attendeeEmail}</span>
                     )}
                   </div>
                   <div className="call-actions">
+                    {event.meetingLink && (
+                      <a href={event.meetingLink} target="_blank" rel="noopener noreferrer" className="btn-join">
+                        Join <ExternalLink size={12} />
+                      </a>
+                    )}
                     {matchedApplicant ? (
                       <Link to={`/people/${matchedApplicant.id}`} className="btn-link">
                         View profile <ChevronRight size={14} />
                       </Link>
-                    ) : (
-                      <span className="no-match">Not in system</span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )
@@ -118,26 +160,28 @@ export function ActionCenter() {
         </section>
       )}
 
-      {/* Tomorrow's Calls */}
-      {tomorrowCalls.length > 0 && (
+      {/* Tomorrow's Events */}
+      {tomorrowEvents.length > 0 && (
         <section className="calls-section tomorrow">
           <h2 className="section-title">
             <Calendar className="icon" />
-            Tomorrow's Calls
+            Tomorrow's Meetings
           </h2>
           <div className="calls-list">
-            {tomorrowCalls.map(call => {
-              const matchedApplicant = findApplicantByEmail(call.invitee?.email)
+            {tomorrowEvents.map(event => {
+              const matchedApplicant = findApplicantByEmail(event.attendeeEmail)
               return (
-                <div key={call.uri} className="call-card">
+                <div key={event.id} className="call-card">
                   <div className="call-time">
-                    <span className="time-display">{format(new Date(call.start_time), 'h:mm a')}</span>
-                    <span className="call-type">{call.name}</span>
+                    <span className="time-display">{format(event.startTime, 'h:mm a')}</span>
+                    <span className={`call-type ${event.type}`}>
+                      {event.type === 'calendly' ? '📅' : '🗓️'} {event.title}
+                    </span>
                   </div>
                   <div className="call-info">
-                    <h3>{call.invitee?.name || 'Unknown'}</h3>
-                    {call.invitee?.email && (
-                      <span className="email"><Mail size={12} /> {call.invitee.email}</span>
+                    <h3>{event.attendeeName || event.title}</h3>
+                    {event.attendeeEmail && (
+                      <span className="email"><Mail size={12} /> {event.attendeeEmail}</span>
                     )}
                   </div>
                   <div className="call-actions">
@@ -145,9 +189,7 @@ export function ActionCenter() {
                       <Link to={`/people/${matchedApplicant.id}`} className="btn-link">
                         View profile <ChevronRight size={14} />
                       </Link>
-                    ) : (
-                      <span className="no-match">Not in system</span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )
@@ -255,27 +297,27 @@ export function ActionCenter() {
         </section>
       )}
 
-      {/* Upcoming Calls */}
-      {laterCalls.length > 0 && (
+      {/* Upcoming Events */}
+      {laterEvents.length > 0 && (
         <section className="calls-section upcoming">
           <h2 className="section-title">
             <Video className="icon" />
-            Upcoming Calls
+            Upcoming Meetings
           </h2>
           <div className="calls-list compact">
-            {laterCalls.slice(0, 8).map(call => {
-              const matchedApplicant = findApplicantByEmail(call.invitee?.email)
+            {laterEvents.slice(0, 10).map(event => {
+              const matchedApplicant = findApplicantByEmail(event.attendeeEmail)
               return (
-                <div key={call.uri} className="call-card compact">
+                <div key={event.id} className="call-card compact">
                   <div className="call-date">
-                    {format(new Date(call.start_time), 'MMM d')}
+                    {format(event.startTime, 'MMM d')}
                   </div>
                   <div className="call-time-compact">
-                    {format(new Date(call.start_time), 'h:mm a')}
+                    {format(event.startTime, 'h:mm a')}
                   </div>
                   <div className="call-info">
-                    <span className="name">{call.invitee?.name || 'Unknown'}</span>
-                    <span className="type">{call.name}</span>
+                    <span className="name">{event.attendeeName || event.title}</span>
+                    <span className="type">{event.type === 'calendly' ? '📅' : '🗓️'} {event.title}</span>
                   </div>
                   {matchedApplicant && (
                     <Link to={`/people/${matchedApplicant.id}`} className="profile-link">

@@ -4,7 +4,8 @@ import {
   Kanban,
   Calendar,
   Settings,
-  Bell
+  Bell,
+  GraduationCap
 } from 'lucide-react'
 
 const navItems = [
@@ -12,6 +13,7 @@ const navItems = [
   { to: '/pipeline', icon: Kanban, label: 'Pipeline' },
   { to: '/people', icon: Users, label: 'People' },
   { to: '/trainings', icon: Calendar, label: 'Trainings' },
+  { to: '/courses', icon: GraduationCap, label: 'Courses' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

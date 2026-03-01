@@ -1,11 +1,41 @@
 // Calendly API integration
-const CALENDLY_API_KEY = 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzcyMjcyMTE4LCJqdGkiOiJjNTVlNTJhMy0yMDI1LTQ5MmUtOWE4Yy05NzU1YzZlODExZGUiLCJ1c2VyX3V1aWQiOiJjYjRhYjRjOC0wMzg2LTQ4NjMtOGE5Yi0wYTdmZGZmMWY1MzQifQ.Kq58evyx1NZpYD_bFztn3EaUKzPHi5f-fRmMw9FCv4QsX-2srUH-9DWUgh8hQ6DPZxuK34SfKdGNp_c-xJZDbw'
-const CALENDLY_USER_URI = 'https://api.calendly.com/users/cb4ab4c8-0386-4863-8a9b-0a7fdff1f534'
 
-export const BOOKING_LINKS = {
+// Default booking links (fallback if OAuth not connected)
+const DEFAULT_BOOKING_LINKS = {
   chemistry_call: 'https://calendly.com/laela-coaching/chemistry-call',
   interview: 'https://calendly.com/laela-coaching/stepwise-training-interview',
 }
+
+// Get OAuth connection from localStorage
+function getCalendlyConnection(): { access_token: string; user_uri: string } | null {
+  const saved = localStorage.getItem('calendly_connection')
+  if (!saved) return null
+
+  try {
+    const connection = JSON.parse(saved)
+    // Check if token is expired
+    if (connection.expires_at && connection.expires_at < Date.now()) {
+      return null
+    }
+    return connection
+  } catch {
+    return null
+  }
+}
+
+// Get booking links - checks localStorage for OAuth-configured links first
+export function getBookingLinks(): { chemistry_call: string; interview: string } {
+  const savedChemistry = localStorage.getItem('calendly_chemistry_call')
+  const savedInterview = localStorage.getItem('calendly_interview')
+
+  return {
+    chemistry_call: savedChemistry || DEFAULT_BOOKING_LINKS.chemistry_call,
+    interview: savedInterview || DEFAULT_BOOKING_LINKS.interview,
+  }
+}
+
+// Legacy export for backwards compatibility
+export const BOOKING_LINKS = DEFAULT_BOOKING_LINKS
 
 export interface CalendlyEvent {
   uri: string
@@ -30,9 +60,15 @@ export interface CalendlyInvitee {
 }
 
 async function calendlyFetch(endpoint: string): Promise<any> {
+  const connection = getCalendlyConnection()
+
+  if (!connection) {
+    throw new Error('Calendly not connected. Please connect in Settings.')
+  }
+
   const response = await fetch(`https://api.calendly.com${endpoint}`, {
     headers: {
-      'Authorization': `Bearer ${CALENDLY_API_KEY}`,
+      'Authorization': `Bearer ${connection.access_token}`,
       'Content-Type': 'application/json',
     },
   })
@@ -45,9 +81,14 @@ async function calendlyFetch(endpoint: string): Promise<any> {
 }
 
 export async function getUpcomingEvents(): Promise<CalendlyEvent[]> {
+  const connection = getCalendlyConnection()
+  if (!connection) {
+    return []
+  }
+
   const now = new Date().toISOString()
   const data = await calendlyFetch(
-    `/scheduled_events?user=${CALENDLY_USER_URI}&status=active&min_start_time=${now}&sort=start_time:asc&count=20`
+    `/scheduled_events?user=${connection.user_uri}&status=active&min_start_time=${now}&sort=start_time:asc&count=20`
   )
   return data.collection || []
 }
@@ -84,4 +125,9 @@ export async function getUpcomingEventsWithInvitees(): Promise<Array<CalendlyEve
 export function filterPipelineEvents(events: CalendlyEvent[]): CalendlyEvent[] {
   const relevantTypes = ['Chemistry Call', 'Training Interview']
   return events.filter(e => relevantTypes.some(t => e.name.includes(t)))
+}
+
+// Check if Calendly is connected
+export function isCalendlyConnected(): boolean {
+  return getCalendlyConnection() !== null
 }

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getUpcomingEventsWithInvitees, filterPipelineEvents, type CalendlyEvent, type CalendlyInvitee } from '../lib/calendly'
+import { getUpcomingEventsWithInvitees, type CalendlyEvent, type CalendlyInvitee } from '../lib/calendly'
 
 export type EventWithInvitee = CalendlyEvent & { invitee?: CalendlyInvitee }
 
@@ -8,7 +8,8 @@ export function useUpcomingCalls() {
     queryKey: ['calendly-events'],
     queryFn: async () => {
       const events = await getUpcomingEventsWithInvitees()
-      return filterPipelineEvents(events) as EventWithInvitee[]
+      console.log('Calendly events fetched:', events)
+      return events as EventWithInvitee[]
     },
     refetchInterval: 60000, // Refresh every minute
     staleTime: 30000,

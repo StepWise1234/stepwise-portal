@@ -16,7 +16,9 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertCircle,
-  Video
+  Video,
+  Send,
+  Loader2
 } from 'lucide-react'
 import { useApplicant, useApplication, useUpdateApplicant, useUpdateApplication, useMoveStage } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
@@ -38,6 +40,8 @@ export function PersonDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [editing, setEditing] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<any>('')
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState<Record<string, boolean>>({})
 
   const { data: applicant, isLoading } = useApplicant(id!)
   const { data: application } = useApplication(applicant?.email || null)
@@ -45,6 +49,30 @@ export function PersonDetail() {
   const updateApplicant = useUpdateApplicant()
   const updateApplication = useUpdateApplication()
   const moveStage = useMoveStage()
+
+  const sendSchedulingEmail = async (type: 'chemistry_call' | 'interview') => {
+    if (!applicant) return
+    setSendingEmail(type)
+    try {
+      const response = await fetch('https://stepwise.education/api/send-scheduling-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicant_id: applicant.id, type })
+      })
+      if (response.ok) {
+        setEmailSent(prev => ({ ...prev, [type]: true }))
+        setTimeout(() => setEmailSent(prev => ({ ...prev, [type]: false })), 3000)
+      } else {
+        alert('Failed to send email. Check console for details.')
+        console.error(await response.text())
+      }
+    } catch (err) {
+      console.error('Email send error:', err)
+      alert('Failed to send email. Is the API configured?')
+    } finally {
+      setSendingEmail(null)
+    }
+  }
 
   // Load Calendly widget script
   useEffect(() => {
@@ -342,7 +370,7 @@ export function PersonDetail() {
 
         {activeTab === 'application' && (
           <div className="tab-panel application">
-            {!application ? (
+            {!applicant.application_date && !applicant.journey_work_experience && !applicant.training_goals && !applicant.notes && !application ? (
               <div className="empty-state">
                 <AlertCircle size={48} />
                 <h3>No application found</h3>
@@ -351,46 +379,84 @@ export function PersonDetail() {
             ) : (
               <>
                 <section className="card">
-                  <h3>Personal Background</h3>
+                  <h3>Contact Information</h3>
                   <div className="fields-grid">
-                    <EditableField
-                      label="Preferred Name"
-                      field="preferred_name"
-                      value={application.preferred_name}
-                      isApplication
-                    />
-                    <EditableField
-                      label="Signal Handle"
-                      field="signal_handle"
-                      value={application.signal_handle}
-                      isApplication
-                    />
+                    <div className="field readonly">
+                      <label>Email</label>
+                      <span>{applicant.email || <em className="empty">Not set</em>}</span>
+                    </div>
+                    <div className="field readonly">
+                      <label>Phone</label>
+                      <span>{applicant.phone || <em className="empty">Not set</em>}</span>
+                    </div>
+                    <div className="field readonly">
+                      <label>Address</label>
+                      <span>{applicant.address || <em className="empty">Not set</em>}</span>
+                    </div>
+                    <div className="field readonly">
+                      <label>Birth Date</label>
+                      <span>{applicant.birth_date ? format(new Date(applicant.birth_date), 'MMM d, yyyy') : <em className="empty">Not set</em>}</span>
+                    </div>
                   </div>
                 </section>
 
                 <section className="card">
-                  <h3>Experience</h3>
+                  <h3>Emergency Contact</h3>
+                  <div className="fields-grid">
+                    <div className="field readonly">
+                      <label>Name</label>
+                      <span>{applicant.emergency_contact_name || <em className="empty">Not set</em>}</span>
+                    </div>
+                    <div className="field readonly">
+                      <label>Phone</label>
+                      <span>{applicant.emergency_contact_phone || <em className="empty">Not set</em>}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Application Date</h3>
+                  <div className="field readonly">
+                    <label>Submitted</label>
+                    <span>{applicant.application_date ? format(new Date(applicant.application_date), 'MMM d, yyyy h:mm a') : <em className="empty">Unknown</em>}</span>
+                  </div>
+                </section>
+
+                {/* Experience from applicant record */}
+                <section className="card">
+                  <h3>Experience & Background</h3>
                   <div className="fields-stack">
                     <EditableField
                       label="Journey Work Experience"
                       field="journey_work_experience"
-                      value={application.journey_work_experience}
+                      value={applicant.journey_work_experience}
                       type="textarea"
-                      isApplication
                     />
                     <EditableField
                       label="Medicine Experience"
                       field="medicine_experience"
-                      value={application.medicine_experience}
+                      value={applicant.medicine_experience}
                       type="textarea"
-                      isApplication
                     />
                     <EditableField
                       label="Serving Experience"
                       field="serving_experience"
-                      value={application.serving_experience}
+                      value={applicant.serving_experience}
                       type="textarea"
-                      isApplication
+                    />
+                    <div className="field readonly">
+                      <label>Psychedelic Medicine Use</label>
+                      <span>
+                        {applicant.psychedelic_medicine_use && applicant.psychedelic_medicine_use.length > 0
+                          ? applicant.psychedelic_medicine_use.join(', ')
+                          : <em className="empty">None reported</em>}
+                      </span>
+                    </div>
+                    <EditableField
+                      label="Recreational Drug Use"
+                      field="recreational_drug_use"
+                      value={applicant.recreational_drug_use}
+                      type="textarea"
                     />
                   </div>
                 </section>
@@ -401,23 +467,60 @@ export function PersonDetail() {
                     <EditableField
                       label="Training Goals"
                       field="training_goals"
-                      value={application.training_goals}
+                      value={applicant.training_goals}
                       type="textarea"
-                      isApplication
                     />
                     <EditableField
                       label="Life Circumstances"
                       field="life_circumstances"
-                      value={application.life_circumstances}
+                      value={applicant.life_circumstances}
                       type="textarea"
-                      isApplication
+                    />
+                    <EditableField
+                      label="Integration Support"
+                      field="integration_support"
+                      value={applicant.integration_support}
+                      type="textarea"
+                    />
+                    <EditableField
+                      label="Strengths & Hobbies"
+                      field="strengths_hobbies"
+                      value={applicant.strengths_hobbies}
+                      type="textarea"
                     />
                     <EditableField
                       label="Anything Else"
                       field="anything_else"
-                      value={application.anything_else}
+                      value={applicant.anything_else}
                       type="textarea"
-                      isApplication
+                    />
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Physical Health Summary</h3>
+                  <div className="fields-stack">
+                    <div className="field readonly">
+                      <label>Physical Symptoms</label>
+                      <span>
+                        {applicant.physical_symptoms && applicant.physical_symptoms.length > 0
+                          ? applicant.physical_symptoms.join(', ')
+                          : <em className="empty">None reported</em>}
+                      </span>
+                    </div>
+                    <div className="field readonly">
+                      <label>Dietary Preferences</label>
+                      <span>{applicant.dietary_preferences || <em className="empty">None</em>}</span>
+                    </div>
+                    <div className="field readonly">
+                      <label>Allergies</label>
+                      <span>{applicant.allergies || <em className="empty">None</em>}</span>
+                    </div>
+                    <EditableField
+                      label="Supplements"
+                      field="supplements"
+                      value={applicant.supplements}
+                      type="textarea"
                     />
                   </div>
                 </section>
@@ -426,10 +529,9 @@ export function PersonDetail() {
                   <h3>Admin Notes</h3>
                   <EditableField
                     label="Notes about this application"
-                    field="admin_notes"
-                    value={application.admin_notes}
+                    field="notes"
+                    value={applicant.notes}
                     type="textarea"
-                    isApplication
                   />
                 </section>
               </>
@@ -439,6 +541,248 @@ export function PersonDetail() {
 
         {activeTab === 'health' && (
           <div className="tab-panel health">
+            {/* Support Assessment Score */}
+            {(() => {
+              let score = 0
+              let maxScore = 0
+              const factors: { label: string; points: number; present: boolean }[] = []
+
+              // Stress level (0-3 points based on severity)
+              maxScore += 3
+              if (applicant.stress_level !== null && applicant.stress_level !== undefined) {
+                const stressPoints = applicant.stress_level >= 8 ? 3 : applicant.stress_level >= 6 ? 2 : applicant.stress_level >= 4 ? 1 : 0
+                score += stressPoints
+                if (stressPoints > 0) factors.push({ label: `Stress level ${applicant.stress_level}/10`, points: stressPoints, present: true })
+              }
+
+              // Suicide consideration (3 points - critical)
+              maxScore += 3
+              const hasSuicideConsideration = applicant.suicide_consideration &&
+                applicant.suicide_consideration.toLowerCase() !== 'nope' &&
+                applicant.suicide_consideration.toLowerCase() !== 'no' &&
+                applicant.suicide_consideration.toLowerCase() !== 'never'
+              if (hasSuicideConsideration) {
+                score += 3
+                factors.push({ label: 'Suicide consideration', points: 3, present: true })
+              }
+
+              // Mental health diagnosis (2 points)
+              maxScore += 2
+              if (applicant.mental_health_dx && applicant.mental_health_dx.trim()) {
+                score += 2
+                factors.push({ label: 'Mental health diagnosis', points: 2, present: true })
+              }
+
+              // Psychiatric medications (1 point)
+              maxScore += 1
+              if (applicant.psych_medications && applicant.psych_medications.trim()) {
+                score += 1
+                factors.push({ label: 'On psychiatric medications', points: 1, present: true })
+              }
+
+              // Trauma indicators in life experiences (2 points)
+              maxScore += 2
+              if (applicant.life_experiences && applicant.life_experiences.length > 0) {
+                const traumaIndicators = applicant.life_experiences.filter(exp =>
+                  exp.toLowerCase().includes('abuse') ||
+                  exp.toLowerCase().includes('trauma') ||
+                  exp.toLowerCase().includes('addiction') ||
+                  exp.toLowerCase().includes('loss') ||
+                  exp.toLowerCase().includes('death')
+                )
+                if (traumaIndicators.length > 0) {
+                  const traumaPoints = traumaIndicators.length >= 3 ? 2 : 1
+                  score += traumaPoints
+                  factors.push({ label: `${traumaIndicators.length} trauma-related experiences`, points: traumaPoints, present: true })
+                }
+              }
+
+              // Cognitive symptoms (1 point)
+              maxScore += 1
+              if (applicant.cognitive_symptoms && applicant.cognitive_symptoms.length >= 3) {
+                score += 1
+                factors.push({ label: `${applicant.cognitive_symptoms.length} cognitive symptoms`, points: 1, present: true })
+              }
+
+              // Limited support network (1 point - negative indicator)
+              maxScore += 1
+              if (!applicant.support_network || applicant.support_network.length <= 2) {
+                score += 1
+                factors.push({ label: 'Limited support network', points: 1, present: true })
+              }
+
+              // Self-care concerns (1 point)
+              maxScore += 1
+              if (applicant.self_care && (applicant.self_care.toLowerCase().includes('no time') || applicant.self_care.toLowerCase().includes('squeeze'))) {
+                score += 1
+                factors.push({ label: 'Limited self-care', points: 1, present: true })
+              }
+
+              const level = score >= 6 ? 'high' : score >= 3 ? 'medium' : 'low'
+              const levelLabel = score >= 6 ? 'Needs Additional Support' : score >= 3 ? 'Monitor Closely' : 'Standard Support'
+              const levelColor = score >= 6 ? '#EF4444' : score >= 3 ? '#F59E0B' : '#22C55E'
+
+              return (
+                <section className="card support-assessment">
+                  <h3><Heart size={20} /> Support Assessment</h3>
+                  <div className="assessment-score" style={{ borderLeft: `4px solid ${levelColor}` }}>
+                    <div className="score-header">
+                      <span className="score-value" style={{ color: levelColor }}>{score}/{maxScore}</span>
+                      <span className={`score-label level-${level}`} style={{ background: `${levelColor}20`, color: levelColor }}>{levelLabel}</span>
+                    </div>
+                    {factors.length > 0 && (
+                      <div className="score-factors">
+                        {factors.map((f, idx) => (
+                          <div key={idx} className="factor">
+                            <span className="factor-label">{f.label}</span>
+                            <span className="factor-points">+{f.points}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {score === 0 && (
+                      <p className="no-concerns">No significant support indicators identified</p>
+                    )}
+                  </div>
+                </section>
+              )
+            })()}
+
+            {/* Health Screening Alerts */}
+            {(() => {
+              const alerts: { level: 'high' | 'medium' | 'low'; message: string }[] = []
+
+              // Check stress level from applicant record
+              if (applicant.stress_level !== null && applicant.stress_level !== undefined) {
+                if (applicant.stress_level >= 8) {
+                  alerts.push({ level: 'high', message: `High stress level reported: ${applicant.stress_level}/10` })
+                } else if (applicant.stress_level >= 6) {
+                  alerts.push({ level: 'medium', message: `Elevated stress level: ${applicant.stress_level}/10` })
+                }
+              }
+
+              // Check suicide consideration
+              if (applicant.suicide_consideration && applicant.suicide_consideration.toLowerCase() !== 'nope' && applicant.suicide_consideration.toLowerCase() !== 'no' && applicant.suicide_consideration.toLowerCase() !== 'never') {
+                alerts.push({ level: 'high', message: `Suicide consideration flagged: "${applicant.suicide_consideration}"` })
+              }
+
+              // Check mental health diagnosis
+              if (applicant.mental_health_dx && applicant.mental_health_dx.trim()) {
+                alerts.push({ level: 'medium', message: `Mental health diagnosis reported` })
+              }
+
+              // Check psychiatric medications
+              if (applicant.psych_medications && applicant.psych_medications.trim()) {
+                alerts.push({ level: 'low', message: `On psychiatric medications` })
+              }
+
+              // Check physical health issues
+              if (applicant.physical_health && applicant.physical_health.trim()) {
+                alerts.push({ level: 'low', message: `Physical health issues reported` })
+              }
+
+              // Check life experiences for trauma indicators
+              if (applicant.life_experiences && applicant.life_experiences.length > 0) {
+                const traumaIndicators = applicant.life_experiences.filter(exp =>
+                  exp.toLowerCase().includes('abuse') ||
+                  exp.toLowerCase().includes('trauma') ||
+                  exp.toLowerCase().includes('addiction')
+                )
+                if (traumaIndicators.length > 0) {
+                  alerts.push({ level: 'medium', message: `Trauma/abuse history indicated` })
+                }
+              }
+
+              if (alerts.length === 0) return null
+
+              return (
+                <section className="card screening-alerts">
+                  <h3><AlertCircle size={20} /> Health Screening Alerts</h3>
+                  <div className="alerts-list">
+                    {alerts.map((alert, idx) => (
+                      <div key={idx} className={`alert alert-${alert.level}`}>
+                        <span className="alert-badge">{alert.level.toUpperCase()}</span>
+                        <span className="alert-message">{alert.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )
+            })()}
+
+            {/* Stress & Mental State */}
+            <section className="card">
+              <h3>Stress & Mental State</h3>
+              <div className="fields-stack">
+                <div className={`field readonly ${applicant.stress_level !== null && applicant.stress_level >= 7 ? 'highlight-warning' : ''}`}>
+                  <label>Stress Level</label>
+                  <span className={applicant.stress_level !== null && applicant.stress_level >= 7 ? 'text-warning' : ''}>
+                    {applicant.stress_level !== null ? `${applicant.stress_level}/10` : <em className="empty">Not reported</em>}
+                    {applicant.stress_level !== null && applicant.stress_level >= 8 && ' ⚠️ HIGH'}
+                  </span>
+                </div>
+                <div className={`field readonly ${applicant.suicide_consideration && applicant.suicide_consideration.toLowerCase() !== 'nope' && applicant.suicide_consideration.toLowerCase() !== 'no' ? 'highlight-danger' : ''}`}>
+                  <label>Suicide Consideration</label>
+                  <span>{applicant.suicide_consideration || <em className="empty">Not reported</em>}</span>
+                </div>
+                <EditableField
+                  label="Stress Sources"
+                  field="stress_sources"
+                  value={applicant.stress_sources}
+                  type="textarea"
+                />
+                <EditableField
+                  label="Trauma Details"
+                  field="trauma_details"
+                  value={applicant.trauma_details}
+                  type="textarea"
+                />
+              </div>
+            </section>
+
+            {/* Life Experiences & Coping */}
+            <section className="card">
+              <h3>Life Experiences & Coping</h3>
+              <div className="fields-stack">
+                <div className="field readonly">
+                  <label>Life Experiences</label>
+                  <span>
+                    {applicant.life_experiences && applicant.life_experiences.length > 0
+                      ? applicant.life_experiences.join(', ')
+                      : <em className="empty">None reported</em>}
+                  </span>
+                </div>
+                <div className="field readonly">
+                  <label>Cognitive Symptoms</label>
+                  <span>
+                    {applicant.cognitive_symptoms && applicant.cognitive_symptoms.length > 0
+                      ? applicant.cognitive_symptoms.join(', ')
+                      : <em className="empty">None reported</em>}
+                  </span>
+                </div>
+                <div className="field readonly">
+                  <label>Coping Mechanisms</label>
+                  <span>
+                    {applicant.coping_mechanisms && applicant.coping_mechanisms.length > 0
+                      ? applicant.coping_mechanisms.join(', ')
+                      : <em className="empty">None reported</em>}
+                  </span>
+                </div>
+                <div className="field readonly">
+                  <label>Self Care</label>
+                  <span>{applicant.self_care || <em className="empty">Not reported</em>}</span>
+                </div>
+                <div className="field readonly">
+                  <label>Support Network</label>
+                  <span>
+                    {applicant.support_network && applicant.support_network.length > 0
+                      ? applicant.support_network.join(', ')
+                      : <em className="empty">None reported</em>}
+                  </span>
+                </div>
+              </div>
+            </section>
+
             <section className="card">
               <h3>Physical Health</h3>
               <div className="fields-stack">
@@ -490,66 +834,115 @@ export function PersonDetail() {
                   value={applicant.psych_medications}
                   type="textarea"
                 />
+                <div className="field readonly">
+                  <label>Mental Health Support</label>
+                  <span>
+                    {applicant.mental_health_support && applicant.mental_health_support.length > 0
+                      ? applicant.mental_health_support.join(', ')
+                      : <em className="empty">None reported</em>}
+                  </span>
+                </div>
+                <div className="field readonly">
+                  <label>Psychedelic Medicine Experience</label>
+                  <span>
+                    {applicant.psychedelic_medicine_use && applicant.psychedelic_medicine_use.length > 0
+                      ? applicant.psychedelic_medicine_use.join(', ')
+                      : <em className="empty">None reported</em>}
+                  </span>
+                </div>
               </div>
             </section>
-
-            {application && (
-              <>
-                <section className="card">
-                  <h3>Detailed Health Info (from Application)</h3>
-                  <div className="fields-stack">
-                    <div className="field readonly">
-                      <label>Stress Level</label>
-                      <span>{application.stress_level}/10</span>
-                    </div>
-                    <div className="field readonly">
-                      <label>Suicide Consideration</label>
-                      <span>{application.suicide_consideration}</span>
-                    </div>
-                    <div className="field readonly">
-                      <label>Mental Health Professional</label>
-                      <span>{application.mental_health_professional}</span>
-                    </div>
-                    <EditableField
-                      label="Trauma Details"
-                      field="trauma_details"
-                      value={application.trauma_details}
-                      type="textarea"
-                      isApplication
-                    />
-                    <EditableField
-                      label="Special Accommodations"
-                      field="special_accommodations"
-                      value={application.special_accommodations}
-                      type="textarea"
-                      isApplication
-                    />
-                  </div>
-                </section>
-              </>
-            )}
           </div>
         )}
 
         {activeTab === 'pipeline' && (
           <div className="tab-panel pipeline">
-            <section className="card">
-              <h3>Pipeline Status</h3>
-              <div className="pipeline-visual">
-                {PIPELINE_STAGES.map((stage, index) => (
+            {/* Modern Pipeline Progress */}
+            <section className="card pipeline-progress-card">
+              <h3>Pipeline Progress</h3>
+              <div className="pipeline-progress">
+                <div className="pipeline-track">
                   <div
-                    key={stage}
-                    className={`pipeline-step ${index <= currentStageIndex ? 'completed' : ''} ${stage === applicant.pipeline_stage ? 'current' : ''}`}
-                  >
-                    <div className="step-dot" style={{ background: index <= currentStageIndex ? STAGE_COLORS[stage] : '#ddd' }} />
-                    <span className="step-label">{STAGE_LABELS[stage]}</span>
-                  </div>
-                ))}
+                    className="pipeline-fill"
+                    style={{
+                      width: `${((currentStageIndex + 1) / PIPELINE_STAGES.length) * 100}%`,
+                      background: `linear-gradient(90deg, ${STAGE_COLORS.lead}, ${STAGE_COLORS[applicant.pipeline_stage as PipelineStage] || STAGE_COLORS.lead})`
+                    }}
+                  />
+                </div>
+                <div className="pipeline-stages">
+                  {PIPELINE_STAGES.map((stage, index) => {
+                    const isCompleted = index < currentStageIndex
+                    const isCurrent = index === currentStageIndex
+                    const isPending = index > currentStageIndex
+                    return (
+                      <div
+                        key={stage}
+                        className={`pipeline-stage ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} ${isPending ? 'pending' : ''}`}
+                      >
+                        <div
+                          className="stage-marker"
+                          style={{
+                            background: isCompleted || isCurrent ? STAGE_COLORS[stage] : '#E5E7EB',
+                            boxShadow: isCurrent ? `0 0 0 4px ${STAGE_COLORS[stage]}30` : 'none'
+                          }}
+                        >
+                          {isCompleted && <span className="checkmark">✓</span>}
+                          {isCurrent && <span className="current-dot" />}
+                        </div>
+                        <span className="stage-name" style={{ color: isCurrent ? STAGE_COLORS[stage] : isCompleted ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {STAGE_LABELS[stage]}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </section>
 
-            <section className="card">
-              <h3>Chemistry Call</h3>
+            {/* Chemistry Call with Calendly */}
+            <section className="card scheduling-card">
+              <div className="card-header-row">
+                <h3><Video size={20} /> Chemistry Call</h3>
+                <div className="btn-group">
+                  <button
+                    onClick={() => sendSchedulingEmail('chemistry_call')}
+                    className={`btn-send-email ${emailSent.chemistry_call ? 'sent' : ''}`}
+                    disabled={sendingEmail === 'chemistry_call' || !applicant.email}
+                    title={!applicant.email ? 'No email address' : 'Send scheduling link to applicant'}
+                  >
+                    {sendingEmail === 'chemistry_call' ? (
+                      <><Loader2 size={16} className="spin" /> Sending...</>
+                    ) : emailSent.chemistry_call ? (
+                      <><Mail size={16} /> Sent!</>
+                    ) : (
+                      <><Send size={16} /> Email Link</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => openCalendlyPopup('chemistry_call')}
+                    className="btn-calendly"
+                  >
+                    <Calendar size={16} />
+                    Book Now
+                  </button>
+                </div>
+              </div>
+              <div className="scheduling-status">
+                <div className={`status-indicator ${applicant.chemistry_call_status || 'not_scheduled'}`}>
+                  <span className="status-dot" />
+                  <span className="status-text">
+                    {applicant.chemistry_call_status === 'completed' ? 'Completed' :
+                     applicant.chemistry_call_status === 'scheduled' ? 'Scheduled' :
+                     applicant.chemistry_call_status === 'no_show' ? 'No Show' : 'Not Scheduled'}
+                  </span>
+                  {applicant.chemistry_call_date && (
+                    <span className="status-date">
+                      {format(new Date(applicant.chemistry_call_date), 'MMM d, yyyy')}
+                    </span>
+                  )}
+                </div>
+              </div>
               <div className="fields-grid">
                 <EditableField label="Date" field="chemistry_call_date" value={applicant.chemistry_call_date} type="date" />
                 <EditableField
@@ -564,12 +957,55 @@ export function PersonDetail() {
                     { value: 'no_show', label: 'No Show' },
                   ]}
                 />
+              </div>
+              <div className="fields-stack">
                 <EditableField label="Notes" field="chemistry_call_notes" value={applicant.chemistry_call_notes} type="textarea" />
               </div>
             </section>
 
-            <section className="card">
-              <h3>Interview</h3>
+            {/* Interview with Calendly */}
+            <section className="card scheduling-card">
+              <div className="card-header-row">
+                <h3><Calendar size={20} /> Interview</h3>
+                <div className="btn-group">
+                  <button
+                    onClick={() => sendSchedulingEmail('interview')}
+                    className={`btn-send-email ${emailSent.interview ? 'sent' : ''}`}
+                    disabled={sendingEmail === 'interview' || !applicant.email}
+                    title={!applicant.email ? 'No email address' : 'Send scheduling link to applicant'}
+                  >
+                    {sendingEmail === 'interview' ? (
+                      <><Loader2 size={16} className="spin" /> Sending...</>
+                    ) : emailSent.interview ? (
+                      <><Mail size={16} /> Sent!</>
+                    ) : (
+                      <><Send size={16} /> Email Link</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => openCalendlyPopup('interview')}
+                    className="btn-calendly"
+                  >
+                    <Calendar size={16} />
+                    Book Now
+                  </button>
+                </div>
+              </div>
+              <div className="scheduling-status">
+                <div className={`status-indicator ${applicant.interview_status || 'not_scheduled'}`}>
+                  <span className="status-dot" />
+                  <span className="status-text">
+                    {applicant.interview_status === 'completed' ? 'Completed' :
+                     applicant.interview_status === 'scheduled' ? 'Scheduled' :
+                     applicant.interview_status === 'no_show' ? 'No Show' : 'Not Scheduled'}
+                  </span>
+                  {applicant.interview_date && (
+                    <span className="status-date">
+                      {format(new Date(applicant.interview_date), 'MMM d, yyyy')}
+                    </span>
+                  )}
+                </div>
+              </div>
               <div className="fields-grid">
                 <EditableField label="Date" field="interview_date" value={applicant.interview_date} type="date" />
                 <EditableField
@@ -584,6 +1020,8 @@ export function PersonDetail() {
                     { value: 'no_show', label: 'No Show' },
                   ]}
                 />
+              </div>
+              <div className="fields-stack">
                 <EditableField label="Notes" field="interview_notes" value={applicant.interview_notes} type="textarea" />
               </div>
             </section>
