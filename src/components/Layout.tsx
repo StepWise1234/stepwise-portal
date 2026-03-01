@@ -1,12 +1,14 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   Users,
   Kanban,
   Calendar,
   Settings,
   Bell,
-  GraduationCap
+  GraduationCap,
+  LogOut
 } from 'lucide-react'
+import { useAuth } from '../lib/auth'
 
 const navItems = [
   { to: '/action-center', icon: Bell, label: 'Action Center' },
@@ -18,6 +20,14 @@ const navItems = [
 ]
 
 export function Layout() {
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login')
+  }
+
   return (
     <div className="app-layout">
       <aside className="sidebar">
@@ -43,6 +53,15 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <span className="user-email">{user?.email}</span>
+          </div>
+          <button onClick={handleSignOut} className="sign-out-btn">
+            <LogOut size={18} />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </aside>
       <main className="main-content">
         <Outlet />
