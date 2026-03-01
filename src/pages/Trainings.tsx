@@ -13,30 +13,43 @@ import {
   AlertCircle,
   CheckCircle2,
   Bed,
-  Car
+  Car,
+  Plus,
+  Eye,
+  EyeOff,
+  UtensilsCrossed,
+  AlertTriangle,
+  StickyNote,
+  Download,
+  ChefHat,
+  Sun,
+  Moon
 } from 'lucide-react'
-import { useTrainings, useUpdateTraining } from '../hooks/useTrainings'
+import { useTrainings, useUpdateTraining, useCreateTraining } from '../hooks/useTrainings'
 import { useApplicants } from '../hooks/useApplicants'
+import { useAllRooms, useAllRoomReservations } from '../hooks/useRoomReservations'
+import { useAllApplications } from '../hooks/useApplications'
 import { STAGE_COLORS, STAGE_LABELS, type PipelineStage } from '../lib/supabase'
+import { exportTrainingPdf } from '../utils/exportTrainingPdf'
 
 // Stages that count toward enrollment (past approval)
 const ENROLLED_STAGES: PipelineStage[] = ['payment', 'onboarding', 'complete']
 
-// Room data for accommodation display
-const ROOM_NAMES: Record<string, string> = {
-  'bedroom-1': 'Room 1 - Queen Suite',
-  'bedroom-2': 'Room 2 - Double Room',
-  'bedroom-3': 'Room 3 - Artisan Room',
-  'bedroom-4': 'Room 4 - Modern Double',
-  'bedroom-5': 'Room 5 - Work Suite',
-  'bedroom-6': 'Room 6 - Attic Retreat',
-  'bedroom-7': 'Room 7 - Skylight Suite',
-  'bedroom-8': 'Room 8 - Grand Suite',
-  'commute': 'Commute'
-}
+// Generate meal dates from training start/end dates
+function generateMealDates(startDate: string, endDate: string): { date: string; label: string }[] {
+  const dates: { date: string; label: string }[] = []
+  const start = new Date(startDate + 'T00:00:00')
+  const end = new Date(endDate + 'T00:00:00')
 
-// Training ID for March 13-16 (has accommodation)
-const MARCH_TRAINING_ID = 'c626109f-11a4-4549-991e-022727300feb'
+  const current = new Date(start)
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0]
+    const label = current.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    dates.push({ date: dateStr, label })
+    current.setDate(current.getDate() + 1)
+  }
+  return dates
+}
 
 // Get status based on capacity
 function getComputedStatus(enrolledCount: number, maxCapacity: number, isPastTraining: boolean): string {
@@ -59,11 +72,25 @@ function getStatusColor(status: string): string {
 export function Trainings() {
   const { data: trainings, isLoading } = useTrainings()
   const updateTraining = useUpdateTraining()
+  const createTraining = useCreateTraining()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<{ id: string; field: string } | null>(null)
   const [editValue, setEditValue] = useState<string | number>('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newTraining, setNewTraining] = useState({
+    name: '',
+    start_date: '',
+    end_date: '',
+    location: 'Greater Boston Area',
+    max_capacity: 6,
+    training_level: 'Beginning',
+    show_on_apply: true,
+  })
 
   const { data: allApplicants } = useApplicants()
+  const { data: allRooms, isLoading: roomsLoading } = useAllRooms()
+  const { data: allReservations } = useAllRoomReservations()
+  const { data: allApplications } = useAllApplications()
 
   const startEdit = (id: string, field: string, value: string | number | null) => {
     setEditing({ id, field })
@@ -80,6 +107,44 @@ export function Trainings() {
   const cancelEdit = () => {
     setEditing(null)
     setEditValue('')
+  }
+
+  const handleCreateTraining = () => {
+    if (!newTraining.name || !newTraining.start_date || !newTraining.end_date) {
+      alert('Please fill in training name and dates')
+      return
+    }
+    createTraining.mutate({
+      name: newTraining.name,
+      start_date: newTraining.start_date,
+      end_date: newTraining.end_date,
+      location: newTraining.location,
+      max_capacity: newTraining.max_capacity,
+      training_level: newTraining.training_level,
+      show_on_apply: newTraining.show_on_apply,
+      status: 'Open',
+      training_type: null,
+      cohort_name: null,
+      price_cents: null,
+      spots_filled: 0,
+    }, {
+      onSuccess: () => {
+        setShowCreateModal(false)
+        setNewTraining({
+          name: '',
+          start_date: '',
+          end_date: '',
+          location: 'Greater Boston Area',
+          max_capacity: 6,
+          training_level: 'Beginning',
+          show_on_apply: true,
+        })
+      }
+    })
+  }
+
+  const toggleShowOnApply = (id: string, currentValue: boolean | null) => {
+    updateTraining.mutate({ id, updates: { show_on_apply: !currentValue } })
   }
 
   if (isLoading) {
@@ -106,9 +171,106 @@ export function Trainings() {
   return (
     <div className="page trainings">
       <header className="page-header">
-        <h1>Trainings</h1>
-        <p className="subtitle">{activeTrainings.length} active, {pastTrainings.length} completed</p>
+        <div className="header-row">
+          <div>
+            <h1>Trainings</h1>
+            <p className="subtitle">{activeTrainings.length} active, {pastTrainings.length} completed</p>
+          </div>
+          <button className="btn-create" onClick={() => setShowCreateModal(true)}>
+            <Plus size={18} /> New Training
+          </button>
+        </div>
       </header>
+
+      {/* Create Training Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content create-training-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create New Training</h2>
+              <button className="btn-close" onClick={() => setShowCreateModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Training Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g., April 10 - 13, 2026"
+                  value={newTraining.name}
+                  onChange={e => setNewTraining({ ...newTraining, name: e.target.value })}
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Date</label>
+                  <input
+                    type="date"
+                    value={newTraining.start_date}
+                    onChange={e => setNewTraining({ ...newTraining, start_date: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    value={newTraining.end_date}
+                    onChange={e => setNewTraining({ ...newTraining, end_date: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Location</label>
+                <input
+                  type="text"
+                  placeholder="Greater Boston Area"
+                  value={newTraining.location}
+                  onChange={e => setNewTraining({ ...newTraining, location: e.target.value })}
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Max Capacity</label>
+                  <select
+                    value={newTraining.max_capacity}
+                    onChange={e => setNewTraining({ ...newTraining, max_capacity: parseInt(e.target.value) })}
+                  >
+                    <option value={6}>6 participants</option>
+                    <option value={9}>9 participants</option>
+                    <option value={12}>12 participants</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Training Level</label>
+                  <select
+                    value={newTraining.training_level}
+                    onChange={e => setNewTraining({ ...newTraining, training_level: e.target.value })}
+                  >
+                    <option value="Beginning">Beginning</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={newTraining.show_on_apply}
+                    onChange={e => setNewTraining({ ...newTraining, show_on_apply: e.target.checked })}
+                  />
+                  Show on application form (allow signups)
+                </label>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button className="btn-save" onClick={handleCreateTraining} disabled={createTraining.isPending}>
+                {createTraining.isPending ? 'Creating...' : 'Create Training'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active Trainings */}
       <section className="trainings-section">
@@ -185,8 +347,30 @@ export function Trainings() {
                     </div>
                   </div>
 
-                  <div className="expand-toggle">
-                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  <div className="training-actions">
+                    <button
+                      className="btn-download"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const trainingRooms = allRooms?.filter(r => r.training_id === training.id) || []
+                        const trainingReservations = allReservations?.filter(r => r.training_id === training.id) || []
+                        const trainingApps = allApplications?.filter(a => a.training_id === training.id) || []
+                        exportTrainingPdf(training, trainingApplicants, trainingRooms, trainingReservations, trainingApps)
+                      }}
+                      title="Download PDF"
+                    >
+                      <Download size={14} /> PDF
+                    </button>
+                    <button
+                      className={`btn-visibility ${training.show_on_apply ? 'visible' : 'hidden'}`}
+                      onClick={(e) => { e.stopPropagation(); toggleShowOnApply(training.id, training.show_on_apply) }}
+                      title={training.show_on_apply ? 'Visible on application form' : 'Hidden from application form'}
+                    >
+                      {training.show_on_apply ? <Eye size={16} /> : <EyeOff size={16} />}
+                    </button>
+                    <div className="expand-toggle">
+                      {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </div>
                   </div>
                 </div>
 
@@ -269,53 +453,7 @@ export function Trainings() {
                       </div>
                     </div>
 
-                    {/* Room Assignments - only for March training */}
-                    {training.id === MARCH_TRAINING_ID && (
-                      <div className="detail-section room-assignments-section">
-                        <h4><Bed size={16} /> Room Assignments</h4>
-                        <div className="room-assignments-grid">
-                          {Object.entries(ROOM_NAMES).map(([roomId, roomName]) => {
-                            const occupants = trainingApplicants.filter(a => a.accommodation_choice === roomId)
-                            const isCommute = roomId === 'commute'
-
-                            return (
-                              <div key={roomId} className={`room-assignment-card ${isCommute ? 'commute' : ''} ${occupants.length > 0 ? 'occupied' : 'empty'}`}>
-                                <div className="room-assignment-header">
-                                  {isCommute ? <Car size={16} /> : <Bed size={16} />}
-                                  <span className="room-name">{roomName}</span>
-                                </div>
-                                <div className="room-occupants">
-                                  {occupants.length > 0 ? (
-                                    occupants.map(occ => (
-                                      <Link key={occ.id} to={`/people/${occ.id}`} className="occupant-name">
-                                        {occ.name?.split(' ')[0]}
-                                      </Link>
-                                    ))
-                                  ) : (
-                                    <span className="no-occupant">Available</span>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                        <div className="room-stats">
-                          {(() => {
-                            const withRoom = trainingApplicants.filter(a => a.accommodation_choice && a.accommodation_choice !== 'commute').length
-                            const commuting = trainingApplicants.filter(a => a.accommodation_choice === 'commute').length
-                            const noSelection = trainingApplicants.filter(a => !a.accommodation_choice).length
-                            return (
-                              <>
-                                <span className="stat"><Bed size={14} /> {withRoom} staying</span>
-                                <span className="stat"><Car size={14} /> {commuting} commuting</span>
-                                {noSelection > 0 && <span className="stat pending">{noSelection} pending</span>}
-                              </>
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    )}
-
+                    {/* All Applicants - moved above Room Assignments */}
                     <div className="detail-section">
                       <h4>All Applicants ({trainingApplicants.length})</h4>
                       <div className="applicants-grid">
@@ -344,6 +482,286 @@ export function Trainings() {
                         )}
                       </div>
                     </div>
+
+                    {/* Room Assignments */}
+                    <div className="detail-section room-assignments-section">
+                      <h4><Bed size={16} /> Room Assignments</h4>
+                      {roomsLoading ? (
+                        <p className="loading-text">Loading rooms...</p>
+                      ) : (() => {
+                        const trainingRooms = allRooms?.filter(r => r.training_id === training.id) || []
+                        const trainingReservations = allReservations?.filter(r => r.training_id === training.id) || []
+                        const commuters = trainingApplicants.filter(a => a.accommodation_choice === 'commute')
+                        const enrolledWithoutRoom = trainingApplicants.filter(a =>
+                          ENROLLED_STAGES.includes(a.pipeline_stage as PipelineStage) &&
+                          !trainingReservations.some(r => r.application?.email === a.email) &&
+                          a.accommodation_choice !== 'commute'
+                        )
+
+                        if (trainingRooms.length === 0) {
+                          return <p className="empty">No rooms configured for this training</p>
+                        }
+
+                        return (
+                          <>
+                            <div className="room-assignments-grid">
+                              {trainingRooms.map(room => {
+                                const reservation = trainingReservations.find(r => r.room_id === room.id)
+                                const occupantName = reservation?.application
+                                  ? `${reservation.application.first_name} ${reservation.application.last_name?.charAt(0) || ''}`.trim()
+                                  : null
+
+                                return (
+                                  <div key={room.id} className={`room-assignment-card ${reservation ? 'occupied' : 'empty'} ${room.is_premier ? 'premier' : ''}`}>
+                                    <div className="room-assignment-header">
+                                      <Bed size={16} />
+                                      <span className="room-name">{room.name}</span>
+                                      {room.is_premier && <span className="premier-badge">Premier</span>}
+                                    </div>
+                                  <div className="room-bed-type">{room.bed_type}</div>
+                                  <div className="room-occupants">
+                                    {occupantName ? (
+                                      <span className="occupant-name">{occupantName}</span>
+                                    ) : (
+                                      <span className="no-occupant">Available</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            {/* Commute option */}
+                            {commuters.length > 0 && (
+                              <div className="room-assignment-card commute occupied">
+                                <div className="room-assignment-header">
+                                  <Car size={16} />
+                                  <span className="room-name">Commute</span>
+                                </div>
+                                <div className="room-bed-type">Daily travel</div>
+                                <div className="room-occupants">
+                                  {commuters.map(c => (
+                                    <span key={c.id} className="occupant-name">{c.name?.split(' ')[0]}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                            <div className="room-stats">
+                              <span className="stat"><Bed size={14} /> {trainingReservations.length} rooms reserved</span>
+                              <span className="stat"><Car size={14} /> {commuters.length} commuting</span>
+                              {enrolledWithoutRoom.length > 0 && (
+                                <span className="stat pending">{enrolledWithoutRoom.length} enrolled without room</span>
+                              )}
+                            </div>
+                          </>
+                        )
+                      })()}
+                    </div>
+
+                    {/* Meal Assignments */}
+                    {(() => {
+                      console.log('[Admin Meals] training.id:', training.id, 'allApplications count:', allApplications?.length)
+                      const trainingApps = allApplications?.filter(a => a.training_id === training.id) || []
+                      console.log('[Admin Meals] trainingApps:', trainingApps.length)
+                      const appsWithMeals = trainingApps.filter(a => a.meal_selections && Object.keys(a.meal_selections).length > 0)
+                      console.log('[Admin Meals] appsWithMeals:', appsWithMeals.length)
+
+                      // Generate meal dates for this training
+                      const MEAL_DATES = training.start_date && training.end_date
+                        ? generateMealDates(training.start_date, training.end_date)
+                        : []
+
+                      // Build meal summary for caterer
+                      type MealSummaryDay = { lunch: Record<string, number>; dinner: Record<string, number> }
+                      const mealSummary: Record<string, MealSummaryDay> = {}
+                      MEAL_DATES.forEach(d => {
+                        mealSummary[d.date] = { lunch: {}, dinner: {} }
+                      })
+
+                      appsWithMeals.forEach(app => {
+                        const meals = app.meal_selections as Record<string, { lunch?: string; dinner?: string }>
+                        MEAL_DATES.forEach(d => {
+                          if (meals[d.date]?.lunch) {
+                            const lunchMeal = meals[d.date].lunch!
+                            mealSummary[d.date].lunch[lunchMeal] = (mealSummary[d.date].lunch[lunchMeal] || 0) + 1
+                          }
+                          if (meals[d.date]?.dinner) {
+                            const dinnerMeal = meals[d.date].dinner!
+                            mealSummary[d.date].dinner[dinnerMeal] = (mealSummary[d.date].dinner[dinnerMeal] || 0) + 1
+                          }
+                        })
+                      })
+
+                      return (
+                        <div className="detail-section meal-assignments-section">
+                          <h4><ChefHat size={16} /> Meal Assignments</h4>
+                          {appsWithMeals.length === 0 ? (
+                            <p className="empty">No meal selections yet</p>
+                          ) : (
+                            <>
+                              {/* Meal Summary for Caterer */}
+                              <div className="meal-summary-section">
+                                <h5>Meal Summary (for caterer)</h5>
+                                <div className="meal-summary-grid">
+                                  {MEAL_DATES.map(d => {
+                                    const lunchMeals = Object.entries(mealSummary[d.date]?.lunch || {})
+                                    const dinnerMeals = Object.entries(mealSummary[d.date]?.dinner || {})
+                                    if (lunchMeals.length === 0 && dinnerMeals.length === 0) return null
+
+                                    return (
+                                      <div key={d.date} className="meal-day-summary">
+                                        <h6>{d.label}</h6>
+                                        {lunchMeals.length > 0 && (
+                                          <div className="meal-slot-summary">
+                                            <span className="meal-slot-label"><Sun size={12} /> Lunch</span>
+                                            <ul>
+                                              {lunchMeals.map(([meal, count]) => (
+                                                <li key={meal}><strong>{count}x</strong> {meal}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                        {dinnerMeals.length > 0 && (
+                                          <div className="meal-slot-summary">
+                                            <span className="meal-slot-label"><Moon size={12} /> Dinner</span>
+                                            <ul>
+                                              {dinnerMeals.map(([meal, count]) => (
+                                                <li key={meal}><strong>{count}x</strong> {meal}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Individual Assignments Table */}
+                              <div className="meal-assignments-table">
+                                <h5>Individual Assignments</h5>
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th>Participant</th>
+                                      {MEAL_DATES.map(d => (
+                                        <th key={d.date} colSpan={2}>{d.label}</th>
+                                      ))}
+                                    </tr>
+                                    <tr className="meal-type-row">
+                                      <th></th>
+                                      {MEAL_DATES.flatMap(d => [
+                                        <th key={`${d.date}-lunch`} className="meal-type lunch"><Sun size={12} /> L</th>,
+                                        <th key={`${d.date}-dinner`} className="meal-type dinner"><Moon size={12} /> D</th>
+                                      ])}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {appsWithMeals.map(app => {
+                                      const meals = app.meal_selections as Record<string, { lunch?: string; dinner?: string }>
+                                      return (
+                                        <tr key={app.id}>
+                                          <td className="participant-name">{app.first_name} {app.last_name?.charAt(0)}.</td>
+                                          {MEAL_DATES.flatMap(d => [
+                                            <td key={`${d.date}-lunch`} className="meal-cell" title={meals[d.date]?.lunch || ''}>
+                                              {meals[d.date]?.lunch ? '✓' : '-'}
+                                            </td>,
+                                            <td key={`${d.date}-dinner`} className="meal-cell" title={meals[d.date]?.dinner || ''}>
+                                              {meals[d.date]?.dinner ? '✓' : '-'}
+                                            </td>
+                                          ])}
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                                <p className="meal-hint">Hover over ✓ to see meal selection</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Dietary & Accommodation Needs */}
+                    {(() => {
+                      const trainingApps = allApplications?.filter(a => a.training_id === training.id) || []
+                      const withDietary = trainingApps.filter(a =>
+                        (a.dietary_preferences && a.dietary_preferences.length > 0) ||
+                        a.dietary_other ||
+                        a.allergies
+                      )
+                      const withSpecialNeeds = trainingApps.filter(a => a.special_accommodations)
+                      const withNotes = trainingApps.filter(a => a.accommodation_notes)
+
+                      if (withDietary.length === 0 && withSpecialNeeds.length === 0 && withNotes.length === 0) {
+                        return null
+                      }
+
+                      return (
+                        <div className="detail-section dietary-section">
+                          <h4><UtensilsCrossed size={16} /> Dietary & Accommodation Needs</h4>
+
+                          {/* Dietary Preferences */}
+                          {withDietary.length > 0 && (
+                            <div className="needs-subsection">
+                              <h5>Dietary Preferences & Allergies</h5>
+                              <div className="needs-list">
+                                {withDietary.map(app => (
+                                  <div key={app.id} className="need-item">
+                                    <span className="person-name">{app.first_name} {app.last_name}</span>
+                                    <div className="need-details">
+                                      {app.dietary_preferences && app.dietary_preferences.length > 0 && (
+                                        <span className="dietary-tags">
+                                          {app.dietary_preferences.map((pref, i) => (
+                                            <span key={i} className="dietary-tag">{pref}</span>
+                                          ))}
+                                        </span>
+                                      )}
+                                      {app.dietary_other && (
+                                        <span className="dietary-note">{app.dietary_other}</span>
+                                      )}
+                                      {app.allergies && (
+                                        <span className="allergy-note"><AlertTriangle size={12} /> {app.allergies}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Special Accommodations */}
+                          {withSpecialNeeds.length > 0 && (
+                            <div className="needs-subsection">
+                              <h5>Special Accommodations</h5>
+                              <div className="needs-list">
+                                {withSpecialNeeds.map(app => (
+                                  <div key={app.id} className="need-item special">
+                                    <span className="person-name">{app.first_name} {app.last_name}</span>
+                                    <p className="need-text">{app.special_accommodations}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Additional Notes */}
+                          {withNotes.length > 0 && (
+                            <div className="needs-subsection">
+                              <h5><StickyNote size={14} /> Additional Notes</h5>
+                              <div className="needs-list">
+                                {withNotes.map(app => (
+                                  <div key={app.id} className="need-item note">
+                                    <span className="person-name">{app.first_name} {app.last_name}</span>
+                                    <p className="need-text">{app.accommodation_notes}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
@@ -390,3 +808,5 @@ export function Trainings() {
     </div>
   )
 }
+// cache bust 1772339991
+// force rebuild 1772346679
