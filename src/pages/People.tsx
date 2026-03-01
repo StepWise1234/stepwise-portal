@@ -1,25 +1,23 @@
 import { useState, useMemo, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { format, formatDistanceToNow } from 'date-fns'
 import {
   Search,
-  ChevronRight,
   Mail,
   Phone,
   User,
   X,
   Calendar,
   CreditCard,
-  Bed,
   LayoutGrid,
   List,
   ArrowUpDown,
   ChevronDown,
   CheckCircle,
   Clock,
-  Car,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  MessageCircle
 } from 'lucide-react'
 import { useApplicants, useDeleteApplicant } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
@@ -38,6 +36,7 @@ export function People() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [showTrainingDropdown, setShowTrainingDropdown] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  const navigate = useNavigate()
 
   const { data: allApplicants, isLoading } = useApplicants()
   const deleteApplicant = useDeleteApplicant()
@@ -167,11 +166,6 @@ export function People() {
     }
   }
 
-  const getAccommodationIcon = (choice: string | null) => {
-    if (!choice) return <Bed size={14} className="icon-gray" />
-    if (choice === 'commute') return <Car size={14} className="icon-blue" />
-    return <Bed size={14} className="icon-green" />
-  }
 
   return (
     <div className="page people-page">
@@ -314,7 +308,6 @@ export function People() {
                   {sortField === 'pipeline_stage' && <ArrowUpDown size={14} className={sortDirection} />}
                 </th>
                 <th>Payment</th>
-                <th>Room</th>
                 <th className="sortable" onClick={() => toggleSort('application_date')}>
                   Applied
                   {sortField === 'application_date' && <ArrowUpDown size={14} className={sortDirection} />}
@@ -324,25 +317,32 @@ export function People() {
             </thead>
             <tbody>
               {filteredApplicants.map(applicant => (
-                <tr key={applicant.id}>
+                <tr
+                  key={applicant.id}
+                  className="clickable-row"
+                  onClick={() => navigate(`/people/${applicant.id}`)}
+                >
                   <td className="name-cell">
-                    <Link to={`/people/${applicant.id}`}>
-                      <div className="avatar">
-                        <User size={16} />
-                      </div>
-                      <span className="name">{applicant.name}</span>
-                    </Link>
+                    <div className="avatar">
+                      <User size={16} />
+                    </div>
+                    <span className="name">{applicant.name}</span>
                   </td>
                   <td className="contact-cell">
                     {applicant.email && (
-                      <a href={`mailto:${applicant.email}`} className="contact-link" title={applicant.email}>
+                      <a href={`mailto:${applicant.email}`} className="contact-link" title={applicant.email} onClick={e => e.stopPropagation()}>
                         <Mail size={14} />
                       </a>
                     )}
                     {applicant.phone && (
-                      <a href={`tel:${applicant.phone}`} className="contact-link" title={applicant.phone}>
+                      <a href={`tel:${applicant.phone}`} className="contact-link" title={applicant.phone} onClick={e => e.stopPropagation()}>
                         <Phone size={14} />
                       </a>
+                    )}
+                    {applicant.signal_handle && (
+                      <span className="contact-link signal" title={`Signal: ${applicant.signal_handle}`}>
+                        <MessageCircle size={14} />
+                      </span>
                     )}
                   </td>
                   <td className="training-cell">
@@ -366,11 +366,6 @@ export function People() {
                       <span className="payment-label">{applicant.payment_status || 'Unpaid'}</span>
                     </span>
                   </td>
-                  <td className="room-cell">
-                    <span className="room-status" title={applicant.accommodation_choice || 'Not selected'}>
-                      {getAccommodationIcon(applicant.accommodation_choice)}
-                    </span>
-                  </td>
                   <td className="date-cell">
                     {applicant.application_date ? (
                       <span title={format(new Date(applicant.application_date), 'PPP')}>
@@ -391,9 +386,6 @@ export function People() {
                     >
                       <Trash2 size={16} />
                     </button>
-                    <Link to={`/people/${applicant.id}`} className="view-btn">
-                      <ChevronRight size={18} />
-                    </Link>
                   </td>
                 </tr>
               ))}
@@ -450,10 +442,6 @@ export function People() {
                 <div className="card-stat">
                   {getPaymentIcon(applicant.payment_status)}
                   <span>{applicant.payment_status || 'Unpaid'}</span>
-                </div>
-                <div className="card-stat">
-                  {getAccommodationIcon(applicant.accommodation_choice)}
-                  <span>{applicant.accommodation_choice === 'commute' ? 'Commute' : (applicant.accommodation_choice || 'No room')}</span>
                 </div>
                 {applicant.application_date && (
                   <div className="card-stat date">

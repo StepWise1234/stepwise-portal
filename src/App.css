@@ -2392,12 +2392,6 @@ html, body, #root {
   color: var(--text-secondary);
 }
 
-.room-cell .room-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .date-cell {
   font-size: 13px;
   color: var(--text-secondary);
@@ -2408,11 +2402,24 @@ html, body, #root {
   color: var(--text-muted);
 }
 
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.clickable-row:hover {
+  background: var(--cream);
+}
+
+.contact-cell .signal {
+  color: #3B82F6;
+}
+
 .action-cell {
-  width: 80px;
+  width: 48px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
 }
 
 .action-cell .delete-btn {

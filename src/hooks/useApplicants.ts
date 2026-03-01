@@ -27,7 +27,33 @@ export function useApplicants(filters?: {
 
       const { data, error } = await query
       if (error) throw error
-      return data as (Applicant & { trainings: { name: string; start_date: string } | null })[]
+
+      // Fetch applications to get signal_handle
+      const emails = data?.map(a => a.email).filter(Boolean) || []
+      let applicationMap: Record<string, { signal_handle: string | null }> = {}
+
+      if (emails.length > 0) {
+        const { data: applications } = await supabase
+          .from('applications')
+          .select('email, signal_handle')
+          .in('email', emails)
+
+        applicationMap = (applications || []).reduce((acc, app) => {
+          acc[app.email] = { signal_handle: app.signal_handle }
+          return acc
+        }, {} as Record<string, { signal_handle: string | null }>)
+      }
+
+      // Merge application data into applicants
+      const enrichedData = data?.map(applicant => ({
+        ...applicant,
+        signal_handle: applicant.email ? applicationMap[applicant.email]?.signal_handle || null : null
+      }))
+
+      return enrichedData as (Applicant & {
+        trainings: { name: string; start_date: string } | null
+        signal_handle: string | null
+      })[]
     },
   })
 }
