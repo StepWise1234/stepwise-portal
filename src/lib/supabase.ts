@@ -21,6 +21,7 @@ export interface Training {
   price_cents: number | null
   spots_filled: number | null
   show_on_apply: boolean | null
+  meal_selection_enabled: boolean | null
   created_at: string | null
 }
 

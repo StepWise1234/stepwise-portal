@@ -18,12 +18,17 @@ import {
   AlertCircle,
   Video,
   Send,
-  Loader2
+  Loader2,
+  Lock,
+  Unlock,
+  BookOpen
 } from 'lucide-react'
 import { useApplicant, useApplication, useUpdateApplicant, useUpdateApplication, useMoveStage } from '../hooks/useApplicants'
 import { useTrainings } from '../hooks/useTrainings'
 import { PIPELINE_STAGES, STAGE_LABELS, STAGE_COLORS, type PipelineStage } from '../lib/supabase'
 import { BOOKING_LINKS } from '../lib/calendly'
+import { useCourses, useApplicantUserId, useUserCourseAccess, useGrantCourseAccess, useRevokeCourseAccess } from '../hooks/useCourseAccess'
+import { useRooms, useRoomReservations } from '../hooks/useRoomReservations'
 
 declare global {
   interface Window {
@@ -49,6 +54,20 @@ export function PersonDetail() {
   const updateApplicant = useUpdateApplicant()
   const updateApplication = useUpdateApplication()
   const moveStage = useMoveStage()
+
+  // Course access hooks
+  const { data: courses } = useCourses()
+  const { data: authUserId } = useApplicantUserId(applicant?.email || null)
+  const { data: courseAccess, isLoading: courseAccessLoading } = useUserCourseAccess(authUserId || null)
+
+  // Room hooks - fetch rooms for the applicant's training
+  const { data: trainingRooms } = useRooms(applicant?.training_id || null)
+  const { data: roomReservations } = useRoomReservations(applicant?.training_id || null)
+
+  // Find this applicant's room reservation (by matching application email)
+  const applicantReservation = roomReservations?.find(r => r.application?.email === applicant?.email)
+  const grantAccess = useGrantCourseAccess()
+  const revokeAccess = useRevokeCourseAccess()
 
   const sendSchedulingEmail = async (type: 'chemistry_call' | 'interview') => {
     if (!applicant) return
@@ -334,21 +353,36 @@ export function PersonDetail() {
                     ...(trainings?.map(t => ({ value: t.id, label: t.name })) || [])
                   ]}
                 />
+                {/* Show actual room reservation from portal, or accommodation_choice as fallback */}
+                <div className="field">
+                  <label>Accommodation</label>
+                  <div className="field-value readonly">
+                    {applicantReservation ? (
+                      <span className="room-reserved">
+                        {applicantReservation.room?.name || 'Room reserved'}
+                        {applicantReservation.room?.bed_type && ` (${applicantReservation.room.bed_type})`}
+                      </span>
+                    ) : applicant.accommodation_choice === 'commute' ? (
+                      <span>Commute (not staying)</span>
+                    ) : applicant.accommodation_choice ? (
+                      <span>{applicant.accommodation_choice}</span>
+                    ) : (
+                      <em className="empty">Not selected</em>
+                    )}
+                  </div>
+                </div>
+                {/* Show available rooms for manual override */}
                 <EditableField
-                  label="Accommodation"
+                  label="Override Accommodation"
                   field="accommodation_choice"
                   value={applicant.accommodation_choice}
                   type="select"
                   options={[
                     { value: '', label: 'Not selected' },
-                    { value: 'bedroom-1', label: 'Room 1 - Queen Suite' },
-                    { value: 'bedroom-2', label: 'Room 2 - Double Room (2 beds)' },
-                    { value: 'bedroom-3', label: 'Room 3 - Artisan Room (2 beds)' },
-                    { value: 'bedroom-4', label: 'Room 4 - Modern Double (2 beds)' },
-                    { value: 'bedroom-5', label: 'Room 5 - Work Suite' },
-                    { value: 'bedroom-6', label: 'Room 6 - Attic Retreat' },
-                    { value: 'bedroom-7', label: 'Room 7 - Skylight Suite' },
-                    { value: 'bedroom-8', label: 'Room 8 - Grand Suite (2 queens)' },
+                    ...(trainingRooms?.map(r => ({
+                      value: r.id,
+                      label: `${r.name}${r.bed_type ? ` (${r.bed_type})` : ''}${r.is_premier ? ' ★' : ''}`
+                    })) || []),
                     { value: 'commute', label: 'Commute (not staying)' }
                   ]}
                 />
@@ -1083,30 +1117,129 @@ export function PersonDetail() {
 
         {activeTab === 'engagement' && (
           <div className="tab-panel engagement">
+            {/* Portal Account Status */}
             <section className="card">
-              <h3>Online Course Access</h3>
-              <div className="fields-grid">
-                <EditableField label="Has Access" field="online_course_access" value={applicant.online_course_access} type="boolean" />
-                <EditableField label="Progress (%)" field="online_course_progress" value={applicant.online_course_progress} />
-                <EditableField label="Course Level" field="course_level" value={applicant.course_level} />
-                <EditableField label="Portal Signup Date" field="portal_signup_date" value={applicant.portal_signup_date} type="date" />
-              </div>
-            </section>
-
-            <section className="card">
-              <h3>Course Access by Level</h3>
-              <div className="course-access-grid">
-                {applicant.course_access && Object.entries(applicant.course_access).map(([level, hasAccess]) => (
-                  <div key={level} className={`course-badge ${hasAccess ? 'active' : ''}`}>
-                    {level.replace(/_/g, ' ')}
-                    {hasAccess ? ' ✓' : ''}
+              <h3><User size={20} /> Portal Account</h3>
+              {authUserId ? (
+                <div className="portal-status connected">
+                  <div className="status-badge success">
+                    <Unlock size={16} />
+                    <span>Portal Account Connected</span>
                   </div>
-                ))}
-              </div>
+                  <div className="fields-grid">
+                    <div className="field readonly">
+                      <label>Auth User ID</label>
+                      <span className="mono">{authUserId.slice(0, 8)}...</span>
+                    </div>
+                    <EditableField label="Portal Signup Date" field="portal_signup_date" value={applicant.portal_signup_date} type="date" />
+                  </div>
+                </div>
+              ) : (
+                <div className="portal-status not-connected">
+                  <div className="status-badge warning">
+                    <Lock size={16} />
+                    <span>No Portal Account</span>
+                  </div>
+                  <p className="help-text">
+                    This person hasn't created a portal account yet. Course access can only be granted after they sign up.
+                  </p>
+                </div>
+              )}
             </section>
 
+            {/* Course Access by Level */}
             <section className="card">
-              <h3>Communication History</h3>
+              <h3><BookOpen size={20} /> Course Access by Level</h3>
+              {!authUserId ? (
+                <div className="no-access-message">
+                  <AlertCircle size={20} />
+                  <p>Course access requires a portal account. Once the applicant signs up, you can grant course access here.</p>
+                </div>
+              ) : courseAccessLoading ? (
+                <div className="loading-state">
+                  <Loader2 size={20} className="spin" />
+                  <span>Loading course access...</span>
+                </div>
+              ) : (
+                <div className="course-access-grid">
+                  {courses?.map(course => {
+                    const hasAccess = course.is_default || courseAccess?.some(a => a.course_id === course.id)
+                    const isGranting = grantAccess.isPending
+                    const isRevoking = revokeAccess.isPending
+
+                    return (
+                      <div
+                        key={course.id}
+                        className={`course-access-card ${hasAccess ? 'has-access' : 'no-access'}`}
+                        style={{ borderLeftColor: course.color || '#94A3B8' }}
+                      >
+                        <div className="course-header">
+                          <span className="course-name">{course.name}</span>
+                          {course.is_default && <span className="default-badge">Default</span>}
+                        </div>
+                        <div className="course-actions">
+                          {course.is_default ? (
+                            <span className="access-status always">Always Available</span>
+                          ) : hasAccess ? (
+                            <button
+                              className="btn-revoke"
+                              onClick={() => revokeAccess.mutate({ userId: authUserId, courseId: course.id })}
+                              disabled={isRevoking}
+                            >
+                              {isRevoking ? <Loader2 size={14} className="spin" /> : <Lock size={14} />}
+                              Revoke Access
+                            </button>
+                          ) : (
+                            <button
+                              className="btn-grant"
+                              onClick={() => grantAccess.mutate({ userId: authUserId, courseId: course.id })}
+                              disabled={isGranting}
+                            >
+                              {isGranting ? <Loader2 size={14} className="spin" /> : <Unlock size={14} />}
+                              Grant Access
+                            </button>
+                          )}
+                        </div>
+                        {hasAccess && !course.is_default && (
+                          <div className="access-granted-info">
+                            <span>Granted: {courseAccess?.find(a => a.course_id === course.id)?.granted_at
+                              ? format(new Date(courseAccess.find(a => a.course_id === course.id)!.granted_at), 'MMM d, yyyy')
+                              : 'Unknown'}</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Pipeline Stage Notice */}
+            {authUserId && applicant.pipeline_stage && (
+              <section className="card">
+                <h3><AlertCircle size={20} /> Course Access Rules</h3>
+                <div className="rules-info">
+                  <p>
+                    <strong>Current Stage:</strong> {STAGE_LABELS[applicant.pipeline_stage as PipelineStage] || applicant.pipeline_stage}
+                  </p>
+                  {PIPELINE_STAGES.indexOf(applicant.pipeline_stage as PipelineStage) < PIPELINE_STAGES.indexOf('payment') ? (
+                    <div className="rule-notice warning">
+                      <AlertCircle size={16} />
+                      <span>Applicant has not reached Payment stage. Beginning course access will be auto-granted when moved to Payment.</span>
+                    </div>
+                  ) : (
+                    <div className="rule-notice success">
+                      <GraduationCap size={16} />
+                      <span>Applicant is past Approval stage and eligible for course access.</span>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Communication History */}
+            <section className="card">
+              <h3><Mail size={20} /> Communication History</h3>
               <div className="fields-grid">
                 <div className="field readonly">
                   <label>Emails Sent</label>

@@ -122,6 +122,7 @@ export function Trainings() {
       max_capacity: newTraining.max_capacity,
       training_level: newTraining.training_level,
       show_on_apply: newTraining.show_on_apply,
+      meal_selection_enabled: false,
       status: 'Open',
       training_type: null,
       cohort_name: null,
@@ -427,6 +428,25 @@ export function Trainings() {
                               {training.start_date ? format(new Date(training.start_date), 'MMM d') : '?'} - {training.end_date ? format(new Date(training.end_date), 'MMM d, yyyy') : '?'}
                             </div>
                           </div>
+
+                          <div className="field toggle-field">
+                            <label>Meal Selection</label>
+                            <button
+                              className={`toggle-btn ${training.meal_selection_enabled ? 'enabled' : 'disabled'}`}
+                              onClick={() => updateTraining.mutate({
+                                id: training.id,
+                                updates: { meal_selection_enabled: !training.meal_selection_enabled }
+                              })}
+                            >
+                              <ChefHat size={14} />
+                              {training.meal_selection_enabled ? 'Enabled' : 'Disabled'}
+                            </button>
+                            <span className="toggle-hint">
+                              {training.meal_selection_enabled
+                                ? 'Participants can choose their meals'
+                                : 'Meal selection hidden from portal'}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -592,9 +612,18 @@ export function Trainings() {
                       })
 
                       return (
-                        <div className="detail-section meal-assignments-section">
-                          <h4><ChefHat size={16} /> Meal Assignments</h4>
-                          {appsWithMeals.length === 0 ? (
+                        <div className={`detail-section meal-assignments-section ${!training.meal_selection_enabled ? 'disabled' : ''}`}>
+                          <h4>
+                            <ChefHat size={16} /> Meal Assignments
+                            {!training.meal_selection_enabled && (
+                              <span className="disabled-badge">Disabled</span>
+                            )}
+                          </h4>
+                          {!training.meal_selection_enabled ? (
+                            <p className="empty disabled-message">
+                              Meal selection is disabled for this training. Enable it in Settings above.
+                            </p>
+                          ) : appsWithMeals.length === 0 ? (
                             <p className="empty">No meal selections yet</p>
                           ) : (
                             <>

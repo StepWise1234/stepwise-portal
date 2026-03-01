@@ -120,6 +120,16 @@ export function useMoveStage() {
 
   return useMutation({
     mutationFn: async ({ id, stage }: { id: string; stage: PipelineStage }) => {
+      // First, get the current applicant to check their email and current stage
+      const { data: currentApplicant, error: fetchError } = await supabase
+        .from('applicants')
+        .select('email, pipeline_stage')
+        .eq('id', id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Update the stage
       const { data, error } = await supabase
         .from('applicants')
         .update({
@@ -131,6 +141,63 @@ export function useMoveStage() {
         .single()
 
       if (error) throw error
+
+      // If moving TO payment stage (from a prior stage), auto-grant Beginning course
+      const priorStages: PipelineStage[] = ['lead', 'chemistry_call', 'application', 'interview', 'approval']
+      const fromStage = currentApplicant.pipeline_stage as PipelineStage
+
+      if (stage === 'payment' && priorStages.includes(fromStage) && currentApplicant.email) {
+        try {
+          // Find the user_id from applications table
+          const { data: application } = await supabase
+            .from('applications')
+            .select('user_id')
+            .eq('email', currentApplicant.email)
+            .maybeSingle()
+
+          if (application?.user_id) {
+            // Find the Beginning course
+            const { data: beginningCourse } = await supabase
+              .from('courses')
+              .select('id')
+              .eq('slug', 'beginning')
+              .single()
+
+            if (beginningCourse) {
+              // Grant access to Beginning course
+              await supabase
+                .from('user_course_access')
+                .upsert({
+                  user_id: application.user_id,
+                  course_id: beginningCourse.id,
+                  granted_at: new Date().toISOString(),
+                }, {
+                  onConflict: 'user_id,course_id'
+                })
+
+              console.log('Auto-granted Beginning course access for', currentApplicant.email)
+
+              // Send email notification via Supabase Edge Function
+              try {
+                await supabase.functions.invoke('send-course-access-email', {
+                  body: {
+                    user_id: application.user_id,
+                    email: currentApplicant.email,
+                    course_name: 'Beginning'
+                  }
+                })
+                console.log('Course access email sent to', currentApplicant.email)
+              } catch (emailError) {
+                console.error('Failed to send course access email:', emailError)
+              }
+            }
+          }
+        } catch (courseError) {
+          console.error('Failed to auto-grant course access:', courseError)
+          // Don't throw - the stage move succeeded, course access is secondary
+        }
+      }
+
       return data
     },
     // Optimistic update - immediately move the card in the UI
@@ -186,6 +253,73 @@ export function useMoveStage() {
         queryClient.invalidateQueries({ queryKey: ['applicants-by-stage'] })
         queryClient.invalidateQueries({ queryKey: ['applicants'] })
       }, 500)
+    },
+  })
+}
+
+// Delete applicant
+export function useDeleteApplicant() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // First get the applicant to find their email
+      const { data: applicant, error: fetchError } = await supabase
+        .from('applicants')
+        .select('email, training_id')
+        .eq('id', id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Delete related data in order (respecting foreign keys)
+      if (applicant.email) {
+        // Delete room reservations (by finding their application first)
+        const { data: application } = await supabase
+          .from('applications')
+          .select('id, user_id')
+          .eq('email', applicant.email)
+          .maybeSingle()
+
+        if (application) {
+          // Delete room reservations
+          await supabase
+            .from('room_reservations')
+            .delete()
+            .eq('application_id', application.id)
+
+          // Delete meal selections
+          await supabase
+            .from('meal_selections')
+            .delete()
+            .eq('user_id', application.user_id)
+
+          // Delete course access
+          await supabase
+            .from('user_course_access')
+            .delete()
+            .eq('user_id', application.user_id)
+
+          // Delete the application
+          await supabase
+            .from('applications')
+            .delete()
+            .eq('id', application.id)
+        }
+      }
+
+      // Finally delete the applicant
+      const { error } = await supabase
+        .from('applicants')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      return id
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['applicants'] })
+      queryClient.invalidateQueries({ queryKey: ['applicants-by-stage'] })
     },
   })
 }
