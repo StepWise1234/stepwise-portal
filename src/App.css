@@ -138,6 +138,12 @@ html, body, #root {
   overflow-y: auto;
   min-height: 100vh;
   width: calc(100% - var(--sidebar-width));
+  position: relative;
+}
+
+.main-content-inner {
+  position: relative;
+  z-index: 1;
 }
 
 /* Page Base */

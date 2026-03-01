@@ -9,6 +9,7 @@ import {
   LogOut
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
+import { AnimatedGridBackground } from './AnimatedGridBackground'
 
 const navItems = [
   { to: '/action-center', icon: Bell, label: 'Action Center' },
@@ -57,7 +58,10 @@ export function Layout() {
         </div>
       </aside>
       <main className="main-content">
-        <Outlet />
+        <AnimatedGridBackground />
+        <div className="main-content-inner">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

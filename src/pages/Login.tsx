@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/auth'
 import { Mail, Loader2, CheckCircle } from 'lucide-react'
+import { AnimatedGridBackground } from '../components/AnimatedGridBackground'
 
 export function Login() {
   const [email, setEmail] = useState('')
@@ -28,6 +29,7 @@ export function Login() {
   if (sent) {
     return (
       <div className="login-page">
+        <AnimatedGridBackground />
         <div className="login-card">
           <div className="login-header">
             <img src="/logo.svg" alt="StepWise" className="login-logo" />
@@ -46,6 +48,7 @@ export function Login() {
 
   return (
     <div className="login-page">
+      <AnimatedGridBackground />
       <div className="login-card">
         <div className="login-header">
           <img src="/logo.svg" alt="StepWise" className="login-logo" />
