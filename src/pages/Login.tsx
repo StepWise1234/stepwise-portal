@@ -30,14 +30,7 @@ export function Login() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-header">
-            <div className="brand">
-              <div className="brand-dots">
-                <span className="dot amber"></span>
-                <span className="dot red"></span>
-                <span className="dot purple"></span>
-              </div>
-              <span className="brand-name">StepWise</span>
-            </div>
+            <img src="/logo.svg" alt="StepWise" className="login-logo" />
           </div>
 
           <div className="success-message">
@@ -55,14 +48,7 @@ export function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <div className="brand">
-            <div className="brand-dots">
-              <span className="dot amber"></span>
-              <span className="dot red"></span>
-              <span className="dot purple"></span>
-            </div>
-            <span className="brand-name">StepWise</span>
-          </div>
+          <img src="/logo.svg" alt="StepWise" className="login-logo" />
           <h1>Admin Dashboard</h1>
           <p>Sign in to continue</p>
         </div>

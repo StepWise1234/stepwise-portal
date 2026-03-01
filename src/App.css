@@ -49,35 +49,19 @@ html, body, #root {
 }
 
 .sidebar-header {
-  padding: 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.sidebar-logo {
+  height: 32px;
+  width: auto;
 }
 
-.brand-dots {
-  display: flex;
-  gap: 4px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.dot.amber { background: var(--brand-amber); }
-.dot.red { background: var(--brand-red); }
-.dot.purple { background: var(--brand-purple); }
-
-.brand-name {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
+.login-logo {
+  height: 40px;
+  width: auto;
+  margin-bottom: 8px;
 }
 
 .sidebar-nav {

@@ -32,14 +32,7 @@ export function Layout() {
     <div className="app-layout">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <div className="brand">
-            <div className="brand-dots">
-              <span className="dot amber"></span>
-              <span className="dot red"></span>
-              <span className="dot purple"></span>
-            </div>
-            <span className="brand-name">StepWise</span>
-          </div>
+          <img src="/logo.svg" alt="StepWise" className="sidebar-logo" />
         </div>
         <nav className="sidebar-nav">
           {navItems.map(({ to, icon: Icon, label }) => (
