@@ -13,6 +13,7 @@ import { Courses } from './pages/Courses'
 import { CourseDetail } from './pages/CourseDetail'
 import { Settings } from './pages/Settings'
 import { Accommodation } from './pages/Accommodation'
+import { Questions } from './pages/Questions'
 import './App.css'
 
 const queryClient = new QueryClient({
@@ -53,6 +54,7 @@ function App() {
               <Route path="trainings" element={<Trainings />} />
               <Route path="courses" element={<Courses />} />
               <Route path="courses/:id" element={<CourseDetail />} />
+              <Route path="questions" element={<Questions />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>

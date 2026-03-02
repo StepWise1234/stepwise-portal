@@ -1,10 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ybludwecmqghoheotzzz.supabase.co'
 // Using service role key for admin app to bypass RLS
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || ''
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibHVkd2VjbXFnaG9oZW90enp6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDQzMjgzMywiZXhwIjoyMDg2MDA4ODMzfQ.1356D5Jb1NDT62Jj5liz7i1iPOYTILF90_7tht0inC8'
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey)
+export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
 
 // Types based on your Supabase schema
 export interface Training {

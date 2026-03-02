@@ -7,9 +7,14 @@ export function useUpcomingCalls() {
   return useQuery({
     queryKey: ['calendly-events'],
     queryFn: async () => {
-      const events = await getUpcomingEventsWithInvitees()
-      console.log('Calendly events fetched:', events)
-      return events as EventWithInvitee[]
+      try {
+        const events = await getUpcomingEventsWithInvitees()
+        console.log('Calendly events fetched:', events)
+        return events as EventWithInvitee[]
+      } catch (error) {
+        console.error('Calendly fetch error:', error)
+        return []
+      }
     },
     refetchInterval: 60000, // Refresh every minute
     staleTime: 30000,

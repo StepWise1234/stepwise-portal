@@ -2778,6 +2778,77 @@ html, body, #root {
   font-style: italic;
 }
 
+/* Admin room assignment controls */
+.occupant-with-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unassign-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.room-assignment-card:hover .unassign-btn {
+  opacity: 1;
+}
+
+.unassign-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.assign-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--brand-purple);
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px dashed rgba(139, 92, 246, 0.3);
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.assign-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.2);
+  border-style: solid;
+}
+
+.assign-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.assign-dropdown select {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--brand-purple);
+  background: white;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.assign-dropdown select:focus {
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
 .room-stats {
   display: flex;
   gap: 20px;

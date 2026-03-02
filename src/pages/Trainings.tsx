@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { useTrainings, useUpdateTraining, useCreateTraining } from '../hooks/useTrainings'
 import { useApplicants } from '../hooks/useApplicants'
-import { useAllRooms, useAllRoomReservations } from '../hooks/useRoomReservations'
+import { useAllRooms, useAllRoomReservations, useAssignRoom, useUnassignRoom } from '../hooks/useRoomReservations'
 import { useAllApplications } from '../hooks/useApplications'
 import { STAGE_COLORS, STAGE_LABELS, type PipelineStage } from '../lib/supabase'
 import { exportTrainingPdf } from '../utils/exportTrainingPdf'
@@ -91,6 +91,9 @@ export function Trainings() {
   const { data: allRooms, isLoading: roomsLoading } = useAllRooms()
   const { data: allReservations } = useAllRoomReservations()
   const { data: allApplications } = useAllApplications()
+  const assignRoom = useAssignRoom()
+  const unassignRoom = useUnassignRoom()
+  const [assigningRoom, setAssigningRoom] = useState<{ roomId: string; trainingId: string } | null>(null)
 
   const startEdit = (id: string, field: string, value: string | number | null) => {
     setEditing({ id, field })
@@ -530,6 +533,20 @@ export function Trainings() {
                                 const occupantName = reservation?.application
                                   ? `${reservation.application.first_name} ${reservation.application.last_name?.charAt(0) || ''}`.trim()
                                   : null
+                                const isAssigning = assigningRoom?.roomId === room.id
+
+                                // Get enrolled applicants who can be assigned to this room
+                                const assignableApplicants = trainingApplicants.filter(a =>
+                                  ENROLLED_STAGES.includes(a.pipeline_stage as PipelineStage) &&
+                                  !trainingReservations.some(r => r.application?.email === a.email) &&
+                                  a.accommodation_choice !== 'commute'
+                                )
+
+                                // Find matching application for an applicant
+                                const findApplicationForApplicant = (email: string | null) => {
+                                  if (!email) return undefined
+                                  return allApplications?.find(app => app.email?.toLowerCase() === email.toLowerCase() && app.training_id === training.id)
+                                }
 
                                 return (
                                   <div key={room.id} className={`room-assignment-card ${reservation ? 'occupied' : 'empty'} ${room.is_premier ? 'premier' : ''}`}>
@@ -541,9 +558,68 @@ export function Trainings() {
                                   <div className="room-bed-type">{room.bed_type}</div>
                                   <div className="room-occupants">
                                     {occupantName ? (
-                                      <span className="occupant-name">{occupantName}</span>
+                                      <div className="occupant-with-actions">
+                                        <span className="occupant-name">{occupantName}</span>
+                                        <button
+                                          className="unassign-btn"
+                                          onClick={() => {
+                                            if (reservation && confirm(`Remove ${occupantName} from ${room.name}?`)) {
+                                              unassignRoom.mutate(reservation.id)
+                                            }
+                                          }}
+                                          title="Remove assignment"
+                                        >
+                                          <X size={12} />
+                                        </button>
+                                      </div>
+                                    ) : isAssigning ? (
+                                      <div className="assign-dropdown">
+                                        <select
+                                          autoFocus
+                                          onChange={(e) => {
+                                            const applicant = assignableApplicants.find(a => a.id === e.target.value)
+                                            if (applicant) {
+                                              // First try to find a portal application
+                                              const application = findApplicationForApplicant(applicant.email)
+
+                                              // Use application ID if available, otherwise use applicant ID
+                                              const appId = application?.id || applicant.id
+                                              const userId = application?.user_id || undefined
+
+                                              console.log('Assigning room:', { roomId: room.id, applicationId: appId, trainingId: training.id, userId, hasPortalApp: !!application })
+                                              assignRoom.mutate({
+                                                roomId: room.id,
+                                                applicationId: appId,
+                                                trainingId: training.id,
+                                                userId,
+                                              }, {
+                                                onSuccess: () => console.log('Room assigned successfully'),
+                                                onError: (err) => {
+                                                  console.error('Failed to assign room:', err)
+                                                  alert(`Failed to assign room: ${err.message}`)
+                                                }
+                                              })
+                                            }
+                                            setAssigningRoom(null)
+                                          }}
+                                          onBlur={() => setAssigningRoom(null)}
+                                        >
+                                          <option value="">Select person...</option>
+                                          {assignableApplicants.map(a => (
+                                            <option key={a.id} value={a.id}>{a.name}</option>
+                                          ))}
+                                        </select>
+                                      </div>
                                     ) : (
-                                      <span className="no-occupant">Available</span>
+                                      <button
+                                        className="assign-btn"
+                                        onClick={() => setAssigningRoom({ roomId: room.id, trainingId: training.id })}
+                                        disabled={assignableApplicants.length === 0}
+                                        title={assignableApplicants.length === 0 ? 'No enrolled applicants without rooms' : 'Assign someone to this room'}
+                                      >
+                                        <Plus size={12} />
+                                        <span>Assign</span>
+                                      </button>
                                     )}
                                   </div>
                                 </div>

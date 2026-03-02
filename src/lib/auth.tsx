@@ -2,12 +2,12 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { createClient, type User, type Session } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ybludwecmqghoheotzzz.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibHVkd2VjbXFnaG9oZW90enp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MzI4MzMsImV4cCI6MjA4NjAwODgzM30._wND5hmDkd4sh7clXaBPZP0lU-c6Traz0KzlYyPxKWk'
 
 export const authClient = createClient(supabaseUrl, supabaseAnonKey)
 
 // Whitelist of allowed admin emails (comma-separated in env var)
-const ALLOWED_ADMINS = (import.meta.env.VITE_ALLOWED_ADMINS || '').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
+const ALLOWED_ADMINS = (import.meta.env.VITE_ALLOWED_ADMINS || 'laelaml@gmail.com').split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean)
 
 interface AuthContextType {
   user: User | null
@@ -15,6 +15,7 @@ interface AuthContextType {
   loading: boolean
   isAdmin: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
 }
@@ -51,6 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null }
   }
 
+  const signInWithPassword = signIn
+
   const signInWithMagicLink = async (email: string) => {
     // Check if email is allowed before sending magic link
     if (!ALLOWED_ADMINS.includes(email.toLowerCase())) {
@@ -71,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, signIn, signInWithMagicLink, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, signIn, signInWithPassword, signInWithMagicLink, signOut }}>
       {children}
     </AuthContext.Provider>
   )

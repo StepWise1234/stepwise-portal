@@ -20,8 +20,8 @@ export function AnimatedGridBackground({ className = '' }: AnimatedGridBackgroun
     const numSquares = 30
 
     const resize = () => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
     }
 
     const initSquares = () => {
@@ -35,7 +35,7 @@ export function AnimatedGridBackground({ className = '' }: AnimatedGridBackgroun
           y: Math.floor(Math.random() * rows) * gridSize,
           opacity: Math.random() * 0.08,
           fadeIn: Math.random() > 0.5,
-          speed: 0.002 + Math.random() * 0.003
+          speed: 0.0005 + Math.random() * 0.001
         })
       }
     }
@@ -106,7 +106,16 @@ export function AnimatedGridBackground({ className = '' }: AnimatedGridBackgroun
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
+      className={className}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
     />
   )
 }

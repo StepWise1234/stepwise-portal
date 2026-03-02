@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 
 export interface Room {
@@ -108,6 +108,91 @@ export function useAllRooms() {
       }
       console.log('Rooms fetched:', data?.length)
       return data as Room[]
+    },
+  })
+}
+
+// Admin: Assign a user to a room
+export function useAssignRoom() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      roomId,
+      applicationId,
+      trainingId,
+      userId,
+    }: {
+      roomId: string
+      applicationId: string
+      trainingId: string
+      userId?: string
+    }) => {
+      console.log('useAssignRoom mutationFn called:', { roomId, applicationId, trainingId, userId })
+
+      // First, remove any existing reservation for this application
+      const { error: deleteAppError } = await supabase
+        .from('room_reservations')
+        .delete()
+        .eq('application_id', applicationId)
+
+      if (deleteAppError) console.warn('Error deleting old app reservation:', deleteAppError)
+
+      // Also remove any existing reservation for this room (in case someone else was there)
+      const { error: deleteRoomError } = await supabase
+        .from('room_reservations')
+        .delete()
+        .eq('room_id', roomId)
+
+      if (deleteRoomError) console.warn('Error deleting old room reservation:', deleteRoomError)
+
+      // Build insert object - only include user_id if provided
+      const insertData: Record<string, string> = {
+        room_id: roomId,
+        application_id: applicationId,
+        training_id: trainingId,
+      }
+      if (userId) {
+        insertData.user_id = userId
+      }
+
+      // Create the new reservation
+      const { data, error } = await supabase
+        .from('room_reservations')
+        .insert(insertData)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error inserting room reservation:', error)
+        throw error
+      }
+      console.log('Room reservation created:', data)
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all_room_reservations'] })
+      queryClient.invalidateQueries({ queryKey: ['room_reservations'] })
+    },
+  })
+}
+
+// Admin: Remove a room assignment
+export function useUnassignRoom() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (reservationId: string) => {
+      const { error } = await supabase
+        .from('room_reservations')
+        .delete()
+        .eq('id', reservationId)
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all_room_reservations'] })
+      queryClient.invalidateQueries({ queryKey: ['room_reservations'] })
     },
   })
 }

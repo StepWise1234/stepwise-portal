@@ -6,7 +6,8 @@ import {
   Settings,
   Bell,
   GraduationCap,
-  LogOut
+  LogOut,
+  MessageCircle
 } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { AnimatedGridBackground } from './AnimatedGridBackground'
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/people', icon: Users, label: 'People' },
   { to: '/trainings', icon: Calendar, label: 'Trainings' },
   { to: '/courses', icon: GraduationCap, label: 'Courses' },
+  { to: '/questions', icon: MessageCircle, label: 'Questions' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

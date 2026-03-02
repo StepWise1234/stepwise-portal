@@ -1,28 +1,46 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { Mail, Loader2, CheckCircle } from 'lucide-react'
+import { Mail, Lock, Loader2, CheckCircle } from 'lucide-react'
 import { AnimatedGridBackground } from '../components/AnimatedGridBackground'
 
 export function Login() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  const { signInWithMagicLink } = useAuth()
+  const [usePassword, setUsePassword] = useState(false)
+  const { user, signInWithMagicLink, signInWithPassword } = useAuth()
+  const navigate = useNavigate()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/action-center', { replace: true })
+    }
+  }, [user, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const { error } = await signInWithMagicLink(email)
-
-    if (error) {
-      setError(error.message)
+    if (usePassword) {
+      const { error } = await signInWithPassword(email, password)
+      if (error) {
+        setError(error.message)
+      }
       setLoading(false)
     } else {
-      setSent(true)
-      setLoading(false)
+      const { error } = await signInWithMagicLink(email)
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else {
+        setSent(true)
+        setLoading(false)
+      }
     }
   }
 
@@ -73,19 +91,44 @@ export function Login() {
             </div>
           </div>
 
+          {usePassword && (
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="input-with-icon">
+                <Lock size={18} />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Your password"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
           {error && <div className="error-message">{error}</div>}
 
           <button type="submit" className="login-btn" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 size={18} className="spin" />
-                Sending...
+                {usePassword ? 'Signing in...' : 'Sending...'}
               </>
             ) : (
-              'Send Magic Link'
+              usePassword ? 'Sign In' : 'Send Magic Link'
             )}
           </button>
         </form>
+
+        <button
+          type="button"
+          className="toggle-login-method"
+          onClick={() => setUsePassword(!usePassword)}
+        >
+          {usePassword ? 'Use magic link instead' : 'Use password instead'}
+        </button>
 
         <p className="login-note">
           Only authorized administrators can access this dashboard.

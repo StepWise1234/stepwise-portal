@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 
 export interface ApplicationAccommodationInfo {
   id: string
+  user_id: string
   first_name: string
   last_name: string
   email: string
@@ -23,7 +24,7 @@ export function useAllApplications() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('applications')
-        .select('id, first_name, last_name, email, training_id, dietary_preferences, dietary_other, allergies, accommodation_notes, special_accommodations, accommodation_choice, meal_selections')
+        .select('id, user_id, first_name, last_name, email, training_id, dietary_preferences, dietary_other, allergies, accommodation_notes, special_accommodations, accommodation_choice, meal_selections')
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -43,7 +44,7 @@ export function useTrainingApplications(trainingId: string | null) {
       if (!trainingId) return []
       const { data, error } = await supabase
         .from('applications')
-        .select('id, first_name, last_name, email, training_id, dietary_preferences, dietary_other, allergies, accommodation_notes, special_accommodations, accommodation_choice, meal_selections')
+        .select('id, user_id, first_name, last_name, email, training_id, dietary_preferences, dietary_other, allergies, accommodation_notes, special_accommodations, accommodation_choice, meal_selections')
         .eq('training_id', trainingId)
         .order('last_name', { ascending: true })
 
