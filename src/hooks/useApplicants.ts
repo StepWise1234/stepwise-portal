@@ -169,7 +169,7 @@ export function useMoveStage() {
       if (error) throw error
 
       // If moving TO payment stage (from a prior stage), auto-grant Beginning course
-      const priorStages: PipelineStage[] = ['lead', 'chemistry_call', 'application', 'interview', 'approval']
+      const priorStages: PipelineStage[] = ['lead', 'chemistry_call', 'application', 'interview']
       const fromStage = currentApplicant.pipeline_stage as PipelineStage
 
       if (stage === 'payment' && priorStages.includes(fromStage) && currentApplicant.email) {
@@ -367,7 +367,6 @@ export function useApplicantsByStage() {
         chemistry_call: [],
         application: [],
         interview: [],
-        approval: [],
         payment: [],
         onboarding: [],
         complete: [],
