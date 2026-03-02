@@ -190,13 +190,12 @@ export interface EmailTemplate {
   is_default: boolean | null
 }
 
-// Pipeline stages in order
+// Pipeline stages in order (approval stage removed - interview completion moves directly to payment)
 export const PIPELINE_STAGES = [
   'lead',
   'chemistry_call',
   'application',
   'interview',
-  'approval',
   'payment',
   'onboarding',
   'complete'
@@ -209,7 +208,6 @@ export const STAGE_LABELS: Record<PipelineStage, string> = {
   chemistry_call: 'Chemistry Call',
   application: 'Application',
   interview: 'Interview',
-  approval: 'Approval',
   payment: 'Payment',
   onboarding: 'Onboarding',
   complete: 'Complete'
@@ -221,7 +219,6 @@ export const STAGE_COLORS: Record<PipelineStage, string> = {
   chemistry_call: '#F97316', // Orange
   application: '#F59E0B',    // Amber
   interview: '#84CC16',      // Lime
-  approval: '#22C55E',       // Green
   payment: '#14B8A6',        // Teal
   onboarding: '#0EA5E9',     // Sky blue
   complete: '#6366F1'        // Indigo (coolest)
